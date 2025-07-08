@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#define POT_PIN 34
+
 
 // LCD at address 0x27, 16x2 chars
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -38,7 +40,18 @@ const byte brailleAlphabet[26] = {
   0b110101  // Z
 };
 
-int currentLetterIndex = 0;  // To keep track of which letter to display
+enum Menu {
+  Bathroom = 1,
+  Kitchen = 2,
+  Bedroom = 3
+};
+
+String inputword = "";
+bool inputComplete = false;
+
+String selectedWord = "";
+String newWord = "";
+bool usePotentiometer = false;
 
 void setup() {
   Serial.begin(115200);
@@ -51,35 +64,121 @@ void setup() {
     digitalWrite(braillePins[i], LOW);
   }
 
-  lcd.print("Starting loop...");
-  delay(1000);
+  lcd.setCursor(0, 0);
+  lcd.print("Enter a word:");
+  Serial.println("Type a word and press Enter:");
 }
 
 void loop() {
-  // Get the current letter and its Braille pattern
-  char letter = 'A' + currentLetterIndex;
-  byte pattern = brailleAlphabet[currentLetterIndex];
-
-  // Display on LEDs
-  for (int i = 0; i < 6; i++) {
-    digitalWrite(braillePins[i], (pattern >> i) & 1);
+  // A. Check for Serial Input
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (!isAlpha(c)) {
+      inputComplete = true;
+      usePotentiometer = false;
+    } else {
+      inputword += c;
+    }
   }
 
-  // Display on LCD
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Braille:");
-  lcd.setCursor(0, 1);
-  lcd.print(letter);
+  delay(100);
 
-  Serial.print("Showing letter: ");
-  Serial.println(letter);
+  // B. If user types a word
+  if (inputComplete) {
+    inputword.trim();
+    inputword.toUpperCase();
+    selectedWord = inputword;
 
-  // Move to the next letter
-  currentLetterIndex++;
-  if (currentLetterIndex >= 26) {
-    currentLetterIndex = 0;  // Loop back to A
+    Serial.print("You entered: ");
+    Serial.println(selectedWord);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Word:");
+    lcd.setCursor(0, 1);
+    lcd.print(selectedWord);
+
+    showWord(selectedWord);
+
+    // Reset for next input
+    inputword = "";
+    inputComplete = false;
+
+    // Show the Prompt again
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Enter word or Turn Dial");
+    Serial.println("\nType another new word or turn dial:");
   }
 
-  delay(2000);  // Wait 2 seconds before next letter
+  // C. If user chooses to use the dial
+  if (!inputComplete && Serial.available() == 0) {
+    int potValue = analogRead(POT_PIN);
+    int menuIndex;
+
+    if (potValue < 1200)
+      menuIndex = 1;
+    else if (potValue < 2800)
+      menuIndex = 2;
+    else
+      menuIndex = 3;
+
+    Menu choice = static_cast<Menu>(menuIndex);
+
+    newWord = "";  // Use global variable (this is the fix)
+
+    switch (choice) {
+      case Bathroom:
+        newWord = "BATHROOM";
+        break;
+      case Kitchen:
+        newWord = "KITCHEN";
+        break;
+      case Bedroom:
+        newWord = "BEDROOM";
+        break;
+      default:
+        newWord = "UNKNOWN";
+        break;
+    }
+  }
+
+  if (newWord != selectedWord) {
+    selectedWord = newWord;
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Word:");
+    lcd.setCursor(0, 1);
+    lcd.print(selectedWord);
+
+    showWord(selectedWord);
+
+    Serial.print("Dial selected: ");
+    Serial.println(selectedWord);
+    usePotentiometer = true;
+  }
+}
+
+void showWord(String inputword) {
+  for (int i = 0; i < inputword.length(); i++) {
+    char letter = inputword.charAt(i);
+
+    if (letter >= 'A' && letter <= 'Z') {
+      byte pattern = brailleAlphabet[letter - 'A'];
+
+      for (int j = 0; j < 6; j++) {
+        digitalWrite(braillePins[j], (pattern >> j) & 1);
+      }
+
+      Serial.print("Showing Braille for: ");
+      Serial.println(letter);
+      delay(1500);
+    }
+  }
+
+  for (int j = 0; j < 6; j++) {
+    digitalWrite(braillePins[j], LOW);
+  }
+  delay(1000);
 }

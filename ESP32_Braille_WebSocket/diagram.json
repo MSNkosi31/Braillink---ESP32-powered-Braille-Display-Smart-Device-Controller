@@ -94,6 +94,12 @@
       "top": 186.35,
       "left": -144,
       "attrs": { "value": "320" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": -100,
+      "left": 150
     }
   ],
   "connections": [
@@ -117,7 +123,15 @@
     [ "r5:2", "esp:GND.1", "green", [ "v76.8", "h8.4" ] ],
     [ "r3:2", "esp:GND.1", "green", [ "v67.2", "h-1.2" ] ],
     [ "r4:2", "esp:GND.1", "green", [ "v48", "h-1.2" ] ],
-    [ "r1:2", "r6:2", "green", [ "v28.8", "h75.6", "v9.6" ] ]
+    [ "r1:2", "r6:2", "green", [ "v28.8", "h75.6", "v9.6" ] ],
+    [ "encoder1:CLK", "esp:32", "green", [] ],
+    [ "encoder1:DT", "esp:33", "green", [] ],
+    [ "encoder1:SW", "esp:15", "blue", [] ],
+    [ "pot1:SIG", "esp:34", "green", [] ],
+    [ "pot1:GND", "esp:GND.2", "black", [] ],
+    [ "pot1:VCC", "esp:3.3V", "red", [] ]
+
+
   ],
   "dependencies": {}
 }
