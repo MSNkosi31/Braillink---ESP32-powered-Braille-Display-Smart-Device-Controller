@@ -57,84 +57,6 @@
       line-height: 1.5;
     }
 
-    /* Modal styles */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: var(--overlay-bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: var(--modal-zindex);
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.3s ease, visibility 0.3s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .modal {
-      background-color: var(--card-bg);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
-      width: 100%;
-      max-width: 500px;
-      max-height: 90vh;
-      overflow-y: auto;
-      transform: translateY(20px);
-      transition: transform 0.3s ease;
-      margin: 1rem;
-    }
-
-    .modal-overlay.active .modal {
-      transform: translateY(0);
-    }
-
-    .modal-header {
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      background-color: var(--card-bg);
-      z-index: 1;
-    }
-
-    .modal-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .modal-close {
-      background: none;
-      border: none;
-      font-size: 1.25rem;
-      cursor: pointer;
-      color: var(--text-muted);
-      padding: 0.25rem;
-      border-radius: var(--radius-sm);
-    }
-
-    .modal-close:hover {
-      color: var(--text-main);
-      background-color: var(--background);
-    }
-
-    .modal-body {
-      padding: 1.5rem;
-    }
-
     .app-header {
       display: flex;
       justify-content: space-between;
@@ -148,6 +70,12 @@
       z-index: 50;
     }
 
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
     .app-header h1 {
       font-size: 1.25rem;
       font-weight: 600;
@@ -159,6 +87,26 @@
 
     .app-header h1 i {
       font-size: 1.1em;
+    }
+
+    .battery-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-left: 1rem;
+    }
+
+    .theme-toggle label {
+      font-size: 0.875rem;
+      cursor: pointer;
     }
 
     .user-menu {
@@ -421,6 +369,15 @@
       background-color: var(--background);
     }
 
+    .btn-danger {
+      background-color: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #b91c1c;
+    }
+
     .btn-sm {
       padding: 0.375rem 0.75rem;
       font-size: 0.75rem;
@@ -455,11 +412,25 @@
       box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
     }
 
+    .dot:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
     .braille-character {
       font-size: 3rem;
       font-weight: bold;
       color: var(--primary);
       margin-top: 1rem;
+    }
+
+    .braille-legend {
+      font-size: 0.875rem;
+      background-color: var(--background);
+      padding: 0.75rem;
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+      border: 1px solid var(--border);
     }
 
     .log-item {
@@ -495,33 +466,38 @@
       color: var(--info);
     }
 
-    .form-group {
-      margin-bottom: 1rem;
+    .log-item.mqtt .log-message {
+      font-family: monospace;
     }
 
-    .form-label {
+    .admin-panel {
+      background-color: var(--background);
+      padding: 1.25rem;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--border);
+      margin-bottom: 1.5rem;
+    }
+
+    .device-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .device-controls label {
       display: block;
       margin-bottom: 0.5rem;
       font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--text-main);
     }
 
-    .form-control {
+    .device-controls select, .device-controls input {
       width: 100%;
-      padding: 0.75rem;
-      border: 1px solid var(--border);
+      padding: 0.5rem;
       border-radius: var(--radius-sm);
-      background-color: var(--background);
+      border: 1px solid var(--border);
+      background-color: var(--card-bg);
       color: var(--text-main);
-      font-size: 0.875rem;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .form-control:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     }
 
     .grid-cols-2 {
@@ -542,41 +518,59 @@
       .grid-cols-2 {
         grid-template-columns: 1fr;
       }
-      
-      .modal {
-        margin: 0.5rem;
-        max-height: 95vh;
+
+      .app-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .header-left {
+        order: 1;
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .user-menu {
+        order: 2;
       }
     }
 
-    a:focus, button:focus, input:focus, .dot:focus {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
+    /* Animation for emergency alerts */
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
     }
 
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border-width: 0;
+    .emergency {
+      animation: pulse 0.5s infinite;
+      background-color: rgba(220, 38, 38, 0.1);
     }
   </style>
 </head>
 <body>
   <header class="app-header">
-    <h1><i class="fas fa-braille"></i> Smart Braille Home</h1>
+    <div class="header-left">
+      <h1><i class="fas fa-braille"></i> Smart Braille Home</h1>
+      <div class="battery-status">
+        <i class="fas fa-battery-three-quarters"></i>
+        <span>100% (Simulated)</span>
+      </div>
+      <div class="theme-toggle">
+        <label for="themeSwitch">Dark Mode:</label>
+        <label class="switch">
+          <input type="checkbox" id="themeSwitch" onchange="toggleTheme()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
     <div class="user-menu" onclick="toggleDropdown(event)">
-      <div class="user-avatar" id="userAvatar">JS</div>
+      <div class="user-avatar" id="userAvatar">AD</div>
       <div class="dropdown" id="userDropdown">
-        <a href="#" onclick="openProfileModal()"><i class="fas fa-user-edit"></i> Edit Profile</a>
-        <a href="#" onclick="toggleTheme()"><i class="fas fa-moon"></i> Toggle Theme</a>
+        <a href="#" onclick="openAdminPanel()"><i class="fas fa-user-shield"></i> Admin Panel</a>
+        <a href="#" onclick="simulateMQTT()"><i class="fas fa-sync-alt"></i> Simulate Data</a>
         <div class="divider"></div>
-        <a href="#"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+        <a href="#" onclick="toggleTheme()"><i class="fas fa-moon"></i> Toggle Theme</a>
       </div>
     </div>
   </header>
@@ -665,18 +659,24 @@
             <button class="btn btn-outline btn-sm" onclick="resetBraille()">
               <i class="fas fa-redo"></i> Reset
             </button>
+            <button class="btn btn-danger btn-sm" onclick="triggerEmergency()">
+              <i class="fas fa-exclamation-triangle"></i> Emergency
+            </button>
           </div>
         </div>
         <div class="dots-container">
           <div class="dots" id="brailleDots">
-            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)"></div>
-            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)"></div>
-            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)"></div>
-            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)"></div>
-            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)"></div>
-            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)"></div>
+            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)" aria-label="Braille dot 1" role="button"></div>
+            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)" aria-label="Braille dot 2" role="button"></div>
+            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)" aria-label="Braille dot 3" role="button"></div>
+            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)" aria-label="Braille dot 4" role="button"></div>
+            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)" aria-label="Braille dot 5" role="button"></div>
+            <div class="dot" tabindex="0" onclick="toggleDot(this)" onkeydown="handleDotKeydown(event, this)" aria-label="Braille dot 6" role="button"></div>
           </div>
           <div class="braille-character" id="brailleChar">⠿</div>
+          <div class="braille-legend">
+            <p><strong>Braille Key:</strong> ⠇ = Light ON, ⠙ = Door LOCKED, ⠞ = Temp HIGH</p>
+          </div>
         </div>
       </section>
 
@@ -690,12 +690,47 @@
       </section>
     </div>
 
+    <section class="admin-panel" id="adminPanel" style="display: none;">
+      <div class="panel-header">
+        <h2 class="section-title"><i class="fas fa-user-shield"></i> Admin Controls</h2>
+        <button class="btn btn-outline btn-sm" onclick="closeAdminPanel()">
+          <i class="fas fa-times"></i> Close
+        </button>
+      </div>
+      <div class="device-controls">
+        <div>
+          <label>Living Room Light:</label>
+          <select id="lightControl" onchange="adminControlDevice('light', this.value)">
+            <option value="on">ON</option>
+            <option value="off">OFF</option>
+          </select>
+        </div>
+        <div>
+          <label>Front Door Lock:</label>
+          <select id="doorControl" onchange="adminControlDevice('door', this.value)">
+            <option value="locked">LOCKED</option>
+            <option value="unlocked">UNLOCKED</option>
+          </select>
+        </div>
+        <div>
+          <label>Temperature Monitoring:</label>
+          <select id="tempControl" onchange="adminControlDevice('temp', this.value)">
+            <option value="off">OFF</option>
+            <option value="on">ON</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-header">
         <h2 class="section-title"><i class="fas fa-clipboard-list"></i> System Logs</h2>
         <div class="panel-actions">
           <button class="btn btn-outline btn-sm" onclick="clearLogs()">
             <i class="fas fa-trash"></i> Clear
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="simulateMQTT()">
+            <i class="fas fa-bolt"></i> Simulate MQTT
           </button>
         </div>
       </div>
@@ -708,46 +743,13 @@
     </section>
   </main>
 
-  <!-- Profile Modal -->
-  <div class="modal-overlay" id="profileModal">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title"><i class="fas fa-user-cog"></i> Edit Profile</h3>
-        <button class="modal-close" onclick="closeProfileModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="profileForm" onsubmit="saveProfile(event)">
-          <div class="form-group">
-            <label class="form-label" for="userName">Name</label>
-            <input type="text" id="userName" class="form-control" placeholder="Your name" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="userRole">Role</label>
-            <input type="text" id="userRole" class="form-control" placeholder="Role (e.g. Caregiver)">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="userTheme">Theme Preference</label>
-            <select id="userTheme" class="form-control">
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="system">System Default</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%;">
-            <i class="fas fa-save"></i> Save Changes
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-
   <script>
     const brailleDots = document.getElementById('brailleDots').children;
     const brailleChar = document.getElementById('brailleChar');
     const logContainer = document.getElementById('logContainer');
-    const profileModal = document.getElementById('profileModal');
     const userAvatar = document.getElementById('userAvatar');
     const currentTimeEl = document.getElementById('currentTime');
+    const adminPanel = document.getElementById('adminPanel');
     
     //Braille patterns
     const braillePatterns = [
@@ -761,16 +763,42 @@
       '⠸', '⠹', '⠺', '⠻', '⠼', '⠽', '⠾', '⠿'
     ];
 
+    //Braille mapping for devices
+    const brailleMap = {
+      light_on: "⠇",
+      light_off: "⠉",
+      door_locked: "⠙",
+      door_unlocked: "⠥",
+      temp_on: "⠞",
+      temp_off: "⠕",
+      emergency: "⠗⠑⠙" 
+    };
+
+    //Battery simulation
+    let battery = 100;
+    const batteryInterval = setInterval(() => {
+      battery -= 1;
+      updateBatteryStatus();
+      if (battery < 20) {
+        logAction(`LOW BATTERY: ${battery}% remaining`, "warning");
+      }
+      if (battery <= 0) {
+        clearInterval(batteryInterval);
+        logAction("SYSTEM SHUTDOWN: Battery depleted", "danger");
+      }
+    }, 60000);
+
+    //Initialize
     document.addEventListener('DOMContentLoaded', () => {
       updateCurrentTime();
-      setInterval(updateCurrentTime, 60000); //Update time every minute
+      setInterval(updateCurrentTime, 60000);
       logAction('System initialized successfully', 'success');
       
       //Check for saved theme preference
       const savedTheme = localStorage.getItem('themePreference');
       if (savedTheme === 'dark' || (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.body.classList.add('dark');
-        document.getElementById('userTheme').value = savedTheme;
+        document.getElementById('themeSwitch').checked = true;
       }
       
       //Check for saved profile
@@ -781,11 +809,27 @@
         document.getElementById('userRole').value = profile.role || '';
         userAvatar.textContent = getInitials(profile.name);
       }
+
+      //Simulate initial device states
+      setTimeout(() => {
+        simulateMQTT();
+      }, 2000);
     });
 
     function updateCurrentTime() {
       const now = new Date();
       currentTimeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function updateBatteryStatus() {
+      const batteryIcon = battery > 60 ? "fa-battery-three-quarters" :
+                         battery > 30 ? "fa-battery-half" :
+                         battery > 10 ? "fa-battery-quarter" : "fa-battery-empty";
+      
+      document.querySelector(".battery-status").innerHTML = `
+        <i class="fas ${batteryIcon}"></i>
+        <span>${battery}% (Simulated)</span>
+      `;
     }
 
     function logAction(message, type = 'info') {
@@ -838,48 +882,85 @@
       dropdown.classList.toggle('show');
     }
 
-    function openProfileModal() {
-      profileModal.classList.add('active');
+    function openAdminPanel() {
+      adminPanel.style.display = 'block';
       document.getElementById('userDropdown').classList.remove('show');
-      document.body.style.overflow = 'hidden';
+      logAction('Admin panel opened', 'info');
     }
 
-    function closeProfileModal() {
-      profileModal.classList.remove('active');
-      document.body.style.overflow = '';
+    function closeAdminPanel() {
+      adminPanel.style.display = 'none';
     }
 
-    function saveProfile(event) {
-      event.preventDefault();
-      const name = document.getElementById('userName').value;
-      const role = document.getElementById('userRole').value;
-      const theme = document.getElementById('userTheme').value;
-      
-      //Save profile to localStorage
-      const profile = { name, role };
-      localStorage.setItem('userProfile', JSON.stringify(profile));
-      
-      //Save theme preference
-      localStorage.setItem('themePreference', theme);
-      
-      userAvatar.textContent = getInitials(name);
-      logAction(`Profile updated: ${name} (${role})`, 'success');
-      closeProfileModal();
+    function adminControlDevice(device, action) {
+      let message = '';
+      switch (device) {
+        case 'light':
+          document.getElementById('lightSwitch').checked = (action === 'on');
+          message = `Admin set Light ${action.toUpperCase()}`;
+          updateBrailleFromDevice('light', action);
+          break;
+        case 'door':
+          document.getElementById('doorSwitch').checked = (action === 'unlocked');
+          message = `Admin set Door ${action.toUpperCase()}`;
+          updateBrailleFromDevice('door', action);
+          break;
+        case 'temp':
+          document.getElementById('tempSwitch').checked = (action === 'on');
+          message = `Admin set Temperature monitoring ${action.toUpperCase()}`;
+          updateBrailleFromDevice('temp', action);
+          break;
+      }
+      logAction(message, 'info');
     }
 
-    function getInitials(name) {
-      if (!name) return 'US';
-      const parts = name.split(' ');
-      return parts.map(part => part[0].toUpperCase()).join('').substring(0, 2);
+    function updateBrailleFromDevice(device, status) {
+      const brailleChar = brailleMap[`${device}_${status}`];
+      if (brailleChar) {
+        brailleChar.textContent = brailleChar;
+        logAction(`Braille updated: ${device} ${status} → ${brailleChar}`, 'info');
+      }
+    }
+
+    function simulateMQTT() {
+      const devices = [
+        { device: "light", status: "on", braille: brailleMap.light_on },
+        { device: "door", status: "locked", braille: brailleMap.door_locked },
+        { device: "temp", status: "off", braille: brailleMap.temp_off }
+      ];
+      
+      devices.forEach(device => {
+        logAction(`MQTT: ${device.device} ${device.status} (Braille: ${device.braille})`, "mqtt");
+      });
+      
+      //Update switches to match simulated state
+      document.getElementById('lightSwitch').checked = true;
+      document.getElementById('doorSwitch').checked = false;
+      document.getElementById('tempSwitch').checked = false;
+      
+      logAction('Simulated MQTT device updates completed', 'success');
+    }
+
+    function triggerEmergency() {
+      //Flash the Braille display
+      const dots = document.getElementById('brailleDots');
+      dots.classList.add('emergency');
+      
+      //Set emergency Braille pattern
+      brailleChar.textContent = brailleMap.emergency;
+      
+      logAction("EMERGENCY ALERT: Critical situation detected!", "danger");
+      
+      setTimeout(() => {
+        dots.classList.remove('emergency');
+      }, 5000);
     }
 
     function toggleTheme() {
       document.body.classList.toggle('dark');
       const currentTheme = document.body.classList.contains('dark') ? 'dark' : 'light';
       localStorage.setItem('themePreference', currentTheme);
-      document.getElementById('userTheme').value = currentTheme;
       logAction(`Theme changed to ${currentTheme} mode`, 'info');
-      document.getElementById('userDropdown').classList.remove('show');
     }
 
     function clearLogs() {
@@ -892,19 +973,11 @@
       updateCurrentTime();
     }
 
-    //Close modal when clicking outside
-    profileModal.addEventListener('click', (e) => {
-      if (e.target === profileModal) {
-        closeProfileModal();
-      }
-    });
-
-    //Close modal with escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && profileModal.classList.contains('active')) {
-        closeProfileModal();
-      }
-    });
+    function getInitials(name) {
+      if (!name) return 'US';
+      const parts = name.split(' ');
+      return parts.map(part => part[0].toUpperCase()).join('').substring(0, 2);
+    }
 
     //Event listeners for device switches
     document.getElementById('lightSwitch').addEventListener('change', e => {
@@ -912,6 +985,7 @@
       document.querySelector('.card:nth-child(1) .status').className = `status ${isOn ? 'on' : 'off'}`;
       document.querySelector('.card:nth-child(1) .status').textContent = isOn ? 'ON' : 'OFF';
       logAction(`Living Room Light turned ${isOn ? 'ON' : 'OFF'}`, isOn ? 'success' : 'warning');
+      updateBrailleFromDevice('light', isOn ? 'on' : 'off');
     });
 
     document.getElementById('tempSwitch').addEventListener('change', e => {
@@ -919,6 +993,7 @@
       document.querySelector('.card:nth-child(2) .status').className = `status ${isOn ? 'on' : 'off'}`;
       document.querySelector('.card:nth-child(2) .status').textContent = isOn ? 'ACTIVE' : 'OFF';
       logAction(`Temperature monitoring ${isOn ? 'ENABLED' : 'DISABLED'}`, isOn ? 'success' : 'warning');
+      updateBrailleFromDevice('temp', isOn ? 'on' : 'off');
     });
 
     document.getElementById('doorSwitch').addEventListener('change', e => {
@@ -926,6 +1001,7 @@
       document.querySelector('.card:nth-child(3) .status').className = `status ${isOn ? 'on' : 'off'}`;
       document.querySelector('.card:nth-child(3) .status').textContent = isOn ? 'UNLOCKED' : 'LOCKED';
       logAction(`Front Door ${isOn ? 'UNLOCKED' : 'LOCKED'}`, isOn ? 'danger' : 'success');
+      updateBrailleFromDevice('door', isOn ? 'unlocked' : 'locked');
     });
 
     document.getElementById('voiceSwitch').addEventListener('change', e => {
@@ -935,14 +1011,19 @@
       logAction(`Voice Assistant ${isOn ? 'ACTIVATED' : 'DEACTIVATED'}`, isOn ? 'success' : 'warning');
     });
 
-    //System messages simulation
-    setTimeout(() => {
-      logAction('Voice Assistant ready for commands', 'info');
-    }, 2000);
+    //Close dropdown when clicking outside
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('.user-menu')) {
+        document.getElementById('userDropdown').classList.remove('show');
+      }
+    });
 
-    setTimeout(() => {
-      logAction('New firmware update available', 'warning');
-    }, 5000);
+    //Close admin panel with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && adminPanel.style.display === 'block') {
+        closeAdminPanel();
+      }
+    });
   </script>
 </body>
 </html>
