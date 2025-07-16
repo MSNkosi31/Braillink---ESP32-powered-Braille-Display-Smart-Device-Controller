@@ -1,4 +1,3 @@
-// components/Login.tsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaBraille, FaEye, FaEyeSlash } from 'react-icons/fa';
