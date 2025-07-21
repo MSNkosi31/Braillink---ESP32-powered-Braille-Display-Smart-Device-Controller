@@ -82,6 +82,87 @@ void setup() {
   pinMode(RED_LED, OUTPUT);*/
 }
 
+void clearBin();
+void convertWord(String word, String binLetter[]);
+void displayBrailleFormat(String cell1, String cell2, String cell3, String cell4, String cell5, String cell6, 
+                          String cell7, String cell8, String cell9, String cell10, String cell11, String cell12, String cell13);
+
+void loop() {
+  // read the state of the switch/button:
+  //String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
+
+  /*convertWord(word[r], binLetter);
+
+  if(digitalRead(NEXT_PIN) == HIGH){
+    Serial.println("The state changed HIGH");
+    //digitalWrite(BLUE_LED, true);
+    r++;}
+
+  if(digitalRead(PREV_PIN) == HIGH){
+    Serial.println("The state changed HIGH");
+    //digitalWrite(YELLOW_LED, true);
+    r--;}
+
+  if(digitalRead(ENTER_PIN) == LOW){
+    Serial.println("The state changed LOW ");
+    //digitalWrite(GREEN_LED, true);}
+
+  delay(10000);*/
+  
+  String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
+  //convertWord(word, binLetter);
+  //delay(100000);
+  int i = 0;
+
+  while(i < sizeof(word)){
+    clearBin();
+    convertWord(word[i], binLetter);
+    i++;
+    delay(3000);
+  }
+}
+
+void clearBin(){
+  for (int i=0; i < 13; i++){// 13 is too hardcoded 
+    binLetter[i] = "000000";
+  }
+}
+
+void convertWord(String word, String binLetter[]){//this method converts words into a binary value used to turn certain leds on or off
+  
+  Serial.println(word);
+  for(int i = 0; i < word.length(); i++){
+    binLetter[i] = letters[word[i]].c_str(); //convert this specific letter to the set binary in the map
+  }
+
+  String cell1 = binLetter[0];
+  Serial.println(cell1);// for testing
+  String cell2 = binLetter[1];
+  Serial.println(cell2);
+  String cell3 = binLetter[2];
+  Serial.println(cell3);
+  String cell4 = binLetter[3];
+  Serial.println(cell4);
+  String cell5 = binLetter[4];
+  Serial.println(cell5);
+  String cell6 = binLetter[5];
+  Serial.println(cell6);
+  String cell7 = binLetter[6];
+  Serial.println(cell7);
+  String cell8 = binLetter[7];
+  Serial.println(cell8);
+  String cell9 = binLetter[8];
+  Serial.println(cell9);
+  String cell10 = binLetter[9];
+  Serial.println(cell10);
+  String cell11 = binLetter[10];
+  Serial.println(cell11);
+  String cell12 = binLetter[11];
+  Serial.println(cell12);
+  String cell13 = binLetter[12];
+  Serial.println(cell13);
+  displayBrailleFormat(cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9, cell10, cell11, cell12, cell13);   
+}
 void displayBrailleFormat(String cell1, String cell2, String cell3, String cell4, String cell5, String cell6, String cell7, String cell8, String cell9, String cell10, String cell11, String cell12, String cell13) {
 //this sucked to hell, DON'T TOUCH!!!! 
   //CELL1
@@ -203,82 +284,3 @@ void displayBrailleFormat(String cell1, String cell2, String cell3, String cell4
     matrix.setPoint(3, 7, cell12[4]- '0');
     matrix.setPoint(5, 7, cell12[5]- '0');
 }
-
-
-void clearBin(){
-  for (int i=0; i < 13; i++){// 13 is too hardcoded 
-    binLetter[i] = "000000";
-  }
-}
-
-void convertWord(String word, String binLetter[]){//this method converts words into a binary value used to turn certain leds on or off
-  
-  Serial.println(word);
-  for(int i = 0; i < word.length(); i++){
-    binLetter[i] = letters[word[i]].c_str(); //convert this specific letter to the set binary in the map
-  }
-
-  String cell1 = binLetter[0];
-  Serial.println(cell1);// for testing
-  String cell2 = binLetter[1];
-  Serial.println(cell2);
-  String cell3 = binLetter[2];
-  Serial.println(cell3);
-  String cell4 = binLetter[3];
-  Serial.println(cell4);
-  String cell5 = binLetter[4];
-  Serial.println(cell5);
-  String cell6 = binLetter[5];
-  Serial.println(cell6);
-  String cell7 = binLetter[6];
-  Serial.println(cell7);
-  String cell8 = binLetter[7];
-  Serial.println(cell8);
-  String cell9 = binLetter[8];
-  Serial.println(cell9);
-  String cell10 = binLetter[9];
-  Serial.println(cell10);
-  String cell11 = binLetter[10];
-  Serial.println(cell11);
-  String cell12 = binLetter[11];
-  Serial.println(cell12);
-  String cell13 = binLetter[12];
-  Serial.println(cell13);
-  displayBrailleFormat(cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9, cell10, cell11, cell12, cell13);   
-}
-
-void loop() {
-  // read the state of the switch/button:
-  //String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
-
-  /*convertWord(word[r], binLetter);
-
-  if(digitalRead(NEXT_PIN) == HIGH){
-    Serial.println("The state changed HIGH");
-    //digitalWrite(BLUE_LED, true);
-    r++;}
-
-  if(digitalRead(PREV_PIN) == HIGH){
-    Serial.println("The state changed HIGH");
-    //digitalWrite(YELLOW_LED, true);
-    r--;}
-
-  if(digitalRead(ENTER_PIN) == LOW){
-    Serial.println("The state changed LOW ");
-    //digitalWrite(GREEN_LED, true);}
-
-  delay(10000);*/
-  
-  String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
-  //convertWord(word, binLetter);
-  //delay(100000);
-  int i = 0;
-
-  while(i < sizeof(word)){
-    clearBin();
-    convertWord(word[i], binLetter);
-    i++;
-    delay(3000);
-  }
-}
-
