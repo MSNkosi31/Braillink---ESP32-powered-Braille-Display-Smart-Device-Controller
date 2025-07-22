@@ -4,6 +4,9 @@
 #include <map>
 #include <string>
 
+
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
 //matrix display
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 8
@@ -75,6 +78,20 @@ void setup() {
   pinMode(PREV_PIN, INPUT_PULLDOWN);
   pinMode(ENTER_PIN, INPUT_PULLDOWN);
   pinMode(BACK_PIN, INPUT_PULLDOWN);
+
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\n Connected!");
+  Serial.print(" IP Address: ");
+  Serial.println(WiFi.localIP());
 
   /*pinMode(BLUE_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
