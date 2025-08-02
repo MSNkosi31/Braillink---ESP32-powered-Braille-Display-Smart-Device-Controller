@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "author": "Andile Nkosi",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-breadboard-mini", "id": "bb1", "top": 85, "left": -693.6, "attrs": {} },
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": -48, "left": -446.36, "attrs": {} },
+    {
+      "type": "wokwi-max7219-matrix",
+      "id": "matrix1",
+      "top": -153,
+      "left": -1379.72,
+      "attrs": { "chain": "8", "color": "cyan" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 63.8,
+      "left": -1152,
+      "attrs": { "color": "yellow", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 63.8,
+      "left": -912,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": 63.8,
+      "left": -1267.2,
+      "attrs": { "color": "red", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn4",
+      "top": 63.8,
+      "left": -1027.2,
+      "attrs": { "color": "blue", "xray": "1", "key": "ArrowRight" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text1",
+      "top": 115.2,
+      "left": -1008,
+      "attrs": { "text": "Next" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text2",
+      "top": 115.2,
+      "left": -1257.6,
+      "attrs": { "text": "Back\n" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text3",
+      "top": 115.2,
+      "left": -892.8,
+      "attrs": { "text": "Enter\n" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text4",
+      "top": 115.2,
+      "left": -1142.4,
+      "attrs": { "text": "previous\n" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -64.8,
+      "left": -1083,
+      "attrs": { "volume": "0.1" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:18", "matrix1:CLK", "violet", [ "h38.4", "v-153.6", "h-364.8" ] ],
+    [ "esp:GND.2", "matrix1:GND", "black", [ "h28.8", "v-28.8" ] ],
+    [ "matrix1:V+", "esp:5V", "green", [ "h230.4", "v288" ] ],
+    [ "matrix1:DIN", "esp:23", "green", [ "h403.2", "v105.6" ] ],
+    [ "matrix1:CS", "esp:21", "green", [ "h412.8", "v134.4" ] ],
+    [ "bb1:17t.b", "btn4:1.l", "black", [ "h-28.8", "v38.4", "h-480", "v-67.2" ] ],
+    [ "btn4:2.r", "esp:14", "blue", [ "h19.4", "v-38.2", "h470.4", "v28.8" ] ],
+    [ "btn1:2.r", "esp:27", "gold", [ "h29", "v-47.8", "h595.2", "v28.8" ] ],
+    [ "btn1:1.r", "bb1:17t.a", "black", [ "h19.4", "v86.4", "h364.8", "v-86.4", "h172.8" ] ],
+    [ "btn3:1.r", "bb1:17t.e", "black", [ "h19.4", "v76.8", "h652.8" ] ],
+    [ "bb1:17b.f", "bb1:17t.e", "red", [ "v0" ] ],
+    [ "esp:3V3", "bb1:17b.g", "red", [ "h-38.25", "v192" ] ],
+    [ "bz1:1", "esp:GND.1", "black", [ "v19.2", "h585.6", "v67.2" ] ],
+    [ "esp:22", "bz1:2", "red", [ "h-345.6", "v19.2" ] ],
+    [ "esp:12", "btn2:2.r", "green", [ "v-28.8", "h-345.45", "v28.6" ] ],
+    [ "bb1:17t.c", "btn2:1.r", "black", [ "v0" ] ],
+    [ "btn3:2.r", "esp:32", "red", [ "v-67", "h758.45" ] ]
+  ],
+  "dependencies": {}
+}
