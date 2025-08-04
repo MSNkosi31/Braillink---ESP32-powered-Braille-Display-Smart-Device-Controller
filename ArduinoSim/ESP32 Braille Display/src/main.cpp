@@ -26,6 +26,8 @@ MD_MAX72XX matrix = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEV
 //buzzer
 #define BUZZ_PIN 22
 
+//proximity motion sensor
+#define pirPin 15
 //maps each letter to a binary value
 std::map<char,String> letters = {
   {'a', "100000"},
@@ -80,7 +82,7 @@ void setup() {
   pinMode(ENTER_PIN, INPUT_PULLDOWN);
   pinMode(BACK_PIN, INPUT_PULLDOWN);
   pinMode(BUZZ_PIN, OUTPUT);
-
+  pinMode(pirPin, INPUT);
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
@@ -105,6 +107,16 @@ void displayBrailleFormat(String cell1, String cell2, String cell3, String cell4
 int menuOption = 0;
 
 void loop() {
+  //Read the state of the PIR sensor
+   int pirState = digitalRead(pirPin);
+
+   if (pirState == HIGH) {
+    Serial.println("Motion detected!");
+    // Add your desired action when motion is detected
+  } else {
+    Serial.println("No motion detected.");
+    // Add your desired action when no motion is detected
+  }
   // read the state of the switch/button:
   String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
 
