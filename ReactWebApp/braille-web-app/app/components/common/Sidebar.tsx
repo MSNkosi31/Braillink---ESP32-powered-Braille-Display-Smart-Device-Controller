@@ -16,7 +16,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     const navigate = useNavigate();
     const handleLogout = () => {
         //add logic to clear tokens from local storage here
-
         navigate("/")
     }
 
@@ -30,11 +29,22 @@ const Sidebar: React.FC<SidebarProps> = ({
             <nav className="flex-1">
                 <ul className="space-y-2">
                     {[
-                        {id: "dashboard" as TabType, icon: <FaTachometerAlt/>, label: "Dashboard"},
-                        {id: "devices" as TabType, icon: <FaLightbulb/>, label: "Devices"},
-                        {id: "braille" as TabType, icon: <FaBraille/>, label: "Braille Display"},
-                        {id: "notifications" as TabType, icon: <FaBell/>, label: "Notifications"},
-                        {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"}
+                        { id: "dashboard" as TabType, icon: <FaTachometerAlt />, label: "Dashboard" },
+                        { id: "devices" as TabType, icon: <FaLightbulb />, label: "Devices" },
+                        { id: "braille" as TabType, icon: <FaBraille />, label: "Braille Display" },
+                        {
+                            id: "notifications" as TabType,
+                            icon: (
+                                <div className="relative">
+                                    <FaBell />
+                                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1">
+                                        3
+                                    </span>
+                                </div>
+                            ),
+                            label: "Notifications"
+                        },
+                        { id: "profile" as TabType, icon: <FaUser />, label: "Profile" }
                     ].map((item) => (
                         <li key={item.id}>
                             <button
@@ -43,8 +53,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     activeTab === item.id ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-700"
                                 }`}
                             >
-                                <span className="text-lg">{item.icon} </span>
-                                <span>{item.label} </span>
+                                <span className="text-lg">{item.icon}</span>
+                                <span>{item.label}</span>
                             </button>
                         </li>
                     ))}
@@ -52,10 +62,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             </nav>
             <div className="pt-4 border-t border-gray-700">
                 <button
-                    onClick={handleLogout} 
+                    onClick={handleLogout}
                     className="flex items-center space-x-3 text-gray-300 hover:text-white px-4 py-3 w-full cursor-pointer"
                 >
-                    <FaSignOutAlt/>
+                    <FaSignOutAlt />
                     <span>Logout</span>
                 </button>
             </div>
