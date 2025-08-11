@@ -4,11 +4,12 @@
 #include <map>
 #include <string>
 
-
+// =================== WiFi CONFIG ===================
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
-//matrix display
+
+// =================== MATRIX DISPLAY CONFIG ===================
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 8
 #define CLK_PIN 18
@@ -17,18 +18,19 @@ const char* password = "";
 
 MD_MAX72XX matrix = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
-//buttons
+// =================== BUTTONS ===================
 #define ENTER_PIN 12
 #define BACK_PIN 32
 #define NEXT_PIN 14
 #define PREV_PIN 27
 
-//buzzer
+// =================== BUZZER ===================
 #define BUZZ_PIN 22
 
-//proximity motion sensor
-#define pirPin 15
-//maps each letter to a binary value
+// =================== PROX SENSOR ===================
+#define PROX_PIN 15
+
+// =================== BRAILLE MAPPING ===================
 std::map<char,String> letters = {
   {'a', "100000"},
   {'b', "110000"},
@@ -67,22 +69,38 @@ std::map<char,String> letters = {
   {'8', "110010"},
   {'9', "010100"}
 };
+// =================== GLOBAL VARIABLES ===================
 
-//Set all leds off
-String binLetter [13] = {"000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000"};
-int r = 0;
+String binLetter [13] = {"000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000"};//Sets all leds off
+int menuOption = 0;
+bool welcomeShown = false;
+bool wakeup = false;
+bool AllWake = false;
+unsigned long lastActiveTime = 0;
+const unsigned long activeDuration = 10000; // 60 seconds
+
+// =================== FUNCTION DECLARATIONS ===================
+void clearBin();
+void convertWord(String word, String binLetter[]);
+void displayBrailleFormat(String c1, String c2, String c3, String c4, String c5, String c6,
+                          String c7, String c8, String c9, String c10, String c11, String c12, String c13);
+void showWelcomeMessage();
+void playBuzz(int freq = 1000, int duration = 200);
+
 
 void setup() {
+  Serial.begin(9600);
   matrix.begin();
   matrix.control(MD_MAX72XX::INTENSITY, 5);
   matrix.clear();
-  Serial.begin(9600);
+  
   pinMode(NEXT_PIN, INPUT_PULLDOWN);
   pinMode(PREV_PIN, INPUT_PULLDOWN);
   pinMode(ENTER_PIN, INPUT_PULLDOWN);
   pinMode(BACK_PIN, INPUT_PULLDOWN);
   pinMode(BUZZ_PIN, OUTPUT);
-  pinMode(pirPin, INPUT);
+  pinMode(PROX_PIN, INPUT);
+
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
@@ -96,27 +114,91 @@ void setup() {
   Serial.println("\n Connected!");
   Serial.print(" IP Address: ");
   Serial.println(WiFi.localIP());
+
+   
+  welcomeShown = true;
+  lastActiveTime = millis() - activeDuration;
+  matrix.clear();
+  matrix.update();
 }
 
-void clearBin();
-void convertWord(String word, String binLetter[]);
-void displayBrailleFormat(String cell1, String cell2, String cell3, String cell4, String cell5, String cell6, 
-                          String cell7, String cell8, String cell9, String cell10, String cell11, String cell12, String cell13);
 
 
-int menuOption = 0;
 
 void loop() {
-  //Read the state of the PIR sensor
-   int pirState = digitalRead(pirPin);
-
-   if (pirState == HIGH) {
-    Serial.println("Motion detected!");
-    // Add your desired action when motion is detected
-  } else {
-    Serial.println("No motion detected.");
-    // Add your desired action when no motion is detected
+ // just safety check
+  if (!welcomeShown) return; 
+  
+  String main[] = {"lights", "doorlocks", "theromstat"};
+  String lights[] = {"bedroom#1", "bedroom#2", "kitchen"};
+ 
+  //Read the state of the different pins
+  bool nextPressed  = digitalRead(NEXT_PIN) == HIGH;
+  bool prevPressed  = digitalRead(PREV_PIN) == HIGH;
+  bool enterPressed = digitalRead(ENTER_PIN) == HIGH;
+  bool backPressed  = digitalRead(BACK_PIN) == HIGH;
+  bool motionDetected = digitalRead(PROX_PIN) == HIGH;
+ 
+   bool activityAll = motionDetected || nextPressed || prevPressed || enterPressed || backPressed;
+   bool activityButtons =  nextPressed || prevPressed || enterPressed || backPressed;
+   bool isActive = (millis() - lastActiveTime) < activeDuration;
+   
+  if (!isActive && activityAll) {
+    wakeup = true;
+    AllWake = activityAll;  // true if button caused wake
   }
+
+  // If waking from OFF
+  if (wakeup) {
+    if (AllWake) {
+      showWelcomeMessage();
+      delay(2000);
+      matrix.clear();
+      matrix.update();
+   
+    }
+     lastActiveTime = millis();
+       wakeup = false;
+    AllWake = false;
+    return;
+  }
+
+  // Check if we are within active duration window
+  if (isActive) {
+    if (activityAll) {
+      lastActiveTime = millis(); // keep alive
+    }
+    Serial.println("Display ON (motion/button active)");
+
+    clearBin();
+    convertWord(lights[menuOption], binLetter);
+    matrix.update();
+
+    // Handle buttons only if pressed
+    if (nextPressed) {
+      digitalWrite(BUZZ_PIN, HIGH);
+      delay(1000); // debounce
+      digitalWrite(BUZZ_PIN, LOW);
+      menuOption++;
+      if (menuOption > 2) menuOption = 0;
+    }
+
+    if (prevPressed) {
+      digitalWrite(BUZZ_PIN, HIGH);
+      delay(500); // debounce
+      digitalWrite(BUZZ_PIN, LOW);
+      delay(500); // extra debounce
+      menuOption--;
+      if (menuOption < 0) menuOption = 2;
+    }
+  } 
+  else {
+    
+    Serial.println("Display OFF (no motion/button for 60 seconds)");
+    matrix.clear();
+    matrix.update();
+  }
+
   // read the state of the switch/button:
   String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
 
@@ -150,28 +232,7 @@ void loop() {
     i++;
     delay(3000);
   }*/
-
-  String main[] = {"lights", "doorlocks", "theromstat"};
-  String lights[] = {"bedroom#1", "bedroom#2", "kitchen"};
-  
-  clearBin();
-  convertWord(lights[menuOption], binLetter);
-
-  if (digitalRead(NEXT_PIN) == HIGH) {
-    digitalWrite(BUZZ_PIN, HIGH);
-    delay(1000); // debounce
-    menuOption++;
-    if (menuOption > 2) menuOption = 0;
-  }
-
-  if (digitalRead(PREV_PIN) == HIGH) {
-    digitalWrite(BUZZ_PIN, HIGH);
-    delay(500); // debounce
-    digitalWrite(BUZZ_PIN, HIGH);
-    delay(1000); // debounce
-    menuOption--;
-    if (menuOption < 0) menuOption = 2;
-  }
+ 
 
   /*switch (menuOption) {
     case 0:
@@ -192,21 +253,31 @@ void loop() {
       delay(250);
       break;
   }*/
-
-  delay(50);
-  //clearBin(); // Slow down loop to see messages
+delay(50);
+  
+//clearBin(); // Slow down loop to see messages
 }
 
-void playBuzz(int freq = 1000, int duration = 200) {
+// =================== FUNCTIONS ===================
+void playBuzz(int freq , int duration) {
   tone(BUZZ_PIN, freq);     // Play tone at 'freq' Hz
   delay(duration);          // Wait for 'duration' ms
   noTone(BUZZ_PIN);         // Stop the tone
 }
+
 void clearBin(){
   for (int i=0; i < 13; i++){// 13 is too hardcoded 
     binLetter[i] = "000000";
   }
 }
+
+void showWelcomeMessage() {
+  clearBin();
+  String welcome = "welcome User";  // welcome message (keep it <= 13 chars)
+  convertWord(welcome, binLetter);
+  matrix.update();
+}
+
 void convertWord(String word, String binLetter[]){//this method converts words into a binary value used to turn certain leds on or off
   
   Serial.println(word);
