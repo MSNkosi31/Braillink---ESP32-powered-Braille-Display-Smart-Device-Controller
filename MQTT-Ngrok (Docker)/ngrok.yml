@@ -1,0 +1,10 @@
+version: 2
+authtoken: 30uOCMhxmGy43caDFucxKv8Bso3_59WGdXEubdqaKkfHRNomB
+
+tunnels:
+  mqtt-tcp:
+    proto: tcp
+    addr: mqtt:1883
+  mqtt-ws:
+    proto: http
+    addr: mqtt:9001

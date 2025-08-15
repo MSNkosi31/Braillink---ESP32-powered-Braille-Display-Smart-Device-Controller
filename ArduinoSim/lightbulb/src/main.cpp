@@ -4,8 +4,8 @@
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
-const char* mqtt_server = "test.mosquitto.org";
-const int mqtt_port = 1883;
+const char* mqtt_server = "6.tcp.eu.ngrok.io";
+const int mqtt_port = 11771;
 const char* mqtt_main_topic = "esp32/status";
 const char* mqtt_led1 = "esp32/led1";
 //const char* mqtt_led2 = "esp32/led2";

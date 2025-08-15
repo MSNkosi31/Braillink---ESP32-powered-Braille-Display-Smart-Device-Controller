@@ -7,20 +7,20 @@ services:
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     ports:
-      - "1883:1883"   # MQTT TCP
-      - "9001:9001"   # MQTT WebSocket
+      - "1883:1883"
+      - "9001:9001"
     restart: unless-stopped
 
   ngrok:
-    image: wernight/ngrok
+    image: ngrok/ngrok:latest
     container_name: mqtt-ngrok
+    command: start --all --config /etc/ngrok.yml
+    ports:
+      - "4040:4040"
+    volumes:
+      - ./ngrok.yml:/etc/ngrok.yml
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
-    command: >
-      sh -c "
-      ngrok tcp 1883 --log=stdout &
-      ngrok http 9001 --log=stdout
-      "
     depends_on:
       - mqtt
     restart: unless-stopped
