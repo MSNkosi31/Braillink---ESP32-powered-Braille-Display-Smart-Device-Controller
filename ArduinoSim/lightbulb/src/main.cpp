@@ -4,6 +4,8 @@
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
+const int LED1 = 26;
+
 const char* mqtt_server = "6.tcp.eu.ngrok.io";
 const int mqtt_port = 11771;
 const char* mqtt_main_topic = "esp32/status";
@@ -27,6 +29,14 @@ void callback(char* topic, byte* message, unsigned int length) {
   Serial.print("Message : ");
   Serial.println(messageTemp);
 
+  if(messageTemp=="ON"){
+    digitalWrite(LED1, HIGH);
+    delay(2000);
+  }
+
+  if(messageTemp=="OFF"){
+    digitalWrite(LED1, LOW);
+  }
 }
 
 void reconnect() {
@@ -51,6 +61,12 @@ void switcher(){
 }
 void setup() {
   Serial.begin(115200);
+
+  //testing the led
+  pinMode(LED1, OUTPUT);
+  digitalWrite(LED1, HIGH);
+  delay(2000);
+  digitalWrite(LED1, LOW);
 
   Serial.print("Connecting to WiFi");
   WiFi.begin(ssid, password);
