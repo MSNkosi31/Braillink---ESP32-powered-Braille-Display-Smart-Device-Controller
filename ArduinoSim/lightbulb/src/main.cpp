@@ -8,12 +8,9 @@ const int LED1 = 26;
 
 const char* mqtt_server = "6.tcp.eu.ngrok.io";
 const int mqtt_port = 11771;
-const char* mqtt_main_topic = "esp32/status";
-const char* mqtt_led1 = "esp32/led1";
-//const char* mqtt_led2 = "esp32/led2";
-//const char* mqtt_main_topic = "esp32/status";
-//const char* mqtt_main_topic = "esp32/status";
-
+const char* deviceStatusTopic = "kitchen/light_status";
+const char* deviceTopic = "kitchen/light";
+const char* deviceName = "ESP32Lightbulb";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -29,24 +26,29 @@ void callback(char* topic, byte* message, unsigned int length) {
   Serial.print("Message : ");
   Serial.println(messageTemp);
 
-  if(messageTemp=="ON"){
-    digitalWrite(LED1, HIGH);
-    delay(2000);
-  }
-
-  if(messageTemp=="OFF"){
-    digitalWrite(LED1, LOW);
+  if (String(topic) == deviceTopic) {
+    if (messageTemp.equalsIgnoreCase("ON")) {
+      digitalWrite(LED1, HIGH);
+      Serial.println("Light has been turned on");
+      delay(2000); // blocks execution, consider removing later
+    }
+    else if (messageTemp.equalsIgnoreCase("OFF")) {
+      digitalWrite(LED1, LOW);
+      Serial.println("Light has been turned off");
+    }
   }
 }
 
 void reconnect() {
   while (!client.connected()) {
-    if (client.connect("ESP32Client_1234")) {
-      client.subscribe(mqtt_main_topic);
-      client.subscribe(mqtt_led1); //make a list of all topics then loop through
+    if (client.connect(deviceName)) {
+      //Serial.print("MQTT state: ");
+      //Serial.println(client.state());
+      client.subscribe(deviceStatusTopic);
+      client.subscribe(deviceTopic); //make a list of all topics then loop through
       //Serial.println("Subscribed to: " + String(mqtt_topic));
       // Publish once at connection
-      client.publish(mqtt_main_topic, "On and Connected");// can be moved to specific methods that change a devices status
+      client.publish(deviceStatusTopic, "On and Connected");// can be moved to specific methods that change a devices status
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -56,9 +58,6 @@ void reconnect() {
   }
 }
 
-void switcher(){
-
-}
 void setup() {
   Serial.begin(115200);
 
