@@ -3,7 +3,8 @@
 #include <WiFi.h>
 #include <map>
 #include <string>
-
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 // =================== WiFi CONFIG ===================
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
@@ -17,6 +18,9 @@ const char* password = "";
 #define CS_PIN 21
 
 MD_MAX72XX matrix = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
+
+//=================== LCD SCREEN===================
+LiquidCrystal_I2C lcd(0x27, 16, 2);  
 
 // =================== BUTTONS ===================
 #define ENTER_PIN 12
@@ -115,7 +119,13 @@ void setup() {
   Serial.print(" IP Address: ");
   Serial.println(WiFi.localIP());
 
-   
+  Wire.begin(16, 17);   // SDA = 16, SCL = 17
+  lcd.init();           // Initialize LCD
+  lcd.backlight();      // Turn on backlight
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("System Ready");
+
   welcomeShown = true;
   lastActiveTime = millis() - activeDuration;
   matrix.clear();
@@ -174,6 +184,11 @@ void loop() {
     convertWord(lights[menuOption], binLetter);
     matrix.update();
 
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Selected:");
+    lcd.setCursor(0, 1);
+    lcd.print(lights[menuOption]);
     // Handle buttons only if pressed
     if (nextPressed) {
       digitalWrite(BUZZ_PIN, HIGH);
@@ -202,6 +217,8 @@ void loop() {
   // read the state of the switch/button:
   String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
 
+  
+  
   //convertWord(word[r], binLetter);
 
   /*if(digitalRead(NEXT_PIN) == HIGH){
@@ -275,7 +292,13 @@ void showWelcomeMessage() {
   clearBin();
   String welcome = "welcome User";  // welcome message (keep it <= 13 chars)
   convertWord(welcome, binLetter);
+
   matrix.update();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Welcome");
+  lcd.setCursor(0,1);
+  lcd.print("User");
 }
 
 void convertWord(String word, String binLetter[]){//this method converts words into a binary value used to turn certain leds on or off

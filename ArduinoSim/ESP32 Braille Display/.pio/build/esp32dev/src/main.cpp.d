@@ -196,4 +196,7 @@
  C:/Users/ettie/.platformio/packages/framework-arduinoespressif32/cores/esp32/Server.h \
  C:/Users/ettie/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiUdp.h \
  C:/Users/ettie/.platformio/packages/framework-arduinoespressif32/cores/esp32/Udp.h \
- C:/Users/ettie/.platformio/packages/framework-arduinoespressif32/cores/esp32/cbuf.h
+ C:/Users/ettie/.platformio/packages/framework-arduinoespressif32/cores/esp32/cbuf.h \
+ C:/Users/ettie/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src/Wire.h \
+ C:/Users/ettie/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h \
+ .pio/libdeps/esp32dev/LiquidCrystal_I2C/LiquidCrystal_I2C.h
