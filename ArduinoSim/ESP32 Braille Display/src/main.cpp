@@ -212,6 +212,12 @@ void loop() {
     Serial.println("Display OFF (no motion/button for 60 seconds)");
     matrix.clear();
     matrix.update();
+    
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Goodbye");
+    lcd.setCursor(0,1);
+    lcd.print("User");
   }
 
   // read the state of the switch/button:
