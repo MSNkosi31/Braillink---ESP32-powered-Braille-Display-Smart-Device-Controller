@@ -51,7 +51,7 @@ void setup() {
     digitalWrite(braillePins[i], LOW);
   }
 
-  lcd.print("Starting loop...");
+  lcd.print("Starting loop..."); //starting loop
   delay(1000);
 }
 
