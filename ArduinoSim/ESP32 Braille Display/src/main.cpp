@@ -81,7 +81,7 @@ bool welcomeShown = false;
 bool wakeup = false;
 bool AllWake = false;
 unsigned long lastActiveTime = 0;
-const unsigned long activeDuration = 10000; // 60 seconds
+const unsigned long activeDuration = 10000; // 60 seconds and yes
 
 // =================== FUNCTION DECLARATIONS ===================
 void clearBin();
