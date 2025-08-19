@@ -6,82 +6,81 @@ const char* password = "";
 
 const int LED1 = 26;
 
-const char* mqtt_server = "6.tcp.eu.ngrok.io";
-const int mqtt_port = 11771;
+// If your LED anode is on GPIO and cathode to GND -> active-high (false)
+// If your LED anode is on 3V3 and cathode goes to GPIO -> active-low (true)
+const bool LED_ACTIVE_LOW = true;   // <-- set this to match your wiring
+
+const char* mqtt_server = "5.tcp.eu.ngrok.io";
+const int   mqtt_port   = 16653 ;
+
+const char* deviceTopic       = "kitchen/light";
 const char* deviceStatusTopic = "kitchen/light_status";
-const char* deviceTopic = "kitchen/light";
-const char* deviceName = "ESP32Lightbulb";
+const char* deviceName        = "ESP32Lightbulb";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-void callback(char* topic, byte* message, unsigned int length) {
-  Serial.print("Message arrived on topic: ");
-  Serial.println(topic);
+void publishStatus(const char* s) {
+  client.publish(deviceStatusTopic, s, true);
+  Serial.print("Status -> "); Serial.println(s);
+}
 
-  String messageTemp;
-  for (unsigned int i = 0; i < length; i++) {
-    messageTemp += (char)message[i];
-  }
-  Serial.print("Message : ");
-  Serial.println(messageTemp);
+void setLed(bool on) {
+  // Map ON/OFF to the correct logic level
+  int level = LED_ACTIVE_LOW ? (on ? LOW : HIGH) : (on ? HIGH : LOW);
+  digitalWrite(LED1, level);
+  publishStatus(on ? "ON" : "OFF");
+}
+
+void callback(char* topic, byte* message, unsigned int length) {
+  String payload;
+  for (unsigned int i = 0; i < length; i++) payload += (char)message[i];
+  payload.trim();
+
+  Serial.print("RX ["); Serial.print(topic); Serial.print("] "); Serial.println(payload);
 
   if (String(topic) == deviceTopic) {
-    if (messageTemp.equalsIgnoreCase("ON")) {
-      digitalWrite(LED1, HIGH);
-      Serial.println("Light has been turned on");
-      delay(2000); // blocks execution, consider removing later
-    }
-    else if (messageTemp.equalsIgnoreCase("OFF")) {
-      digitalWrite(LED1, LOW);
-      Serial.println("Light has been turned off");
-    }
+    if (payload.equalsIgnoreCase("ON"))       setLed(true);
+    else if (payload.equalsIgnoreCase("OFF")) setLed(false);
+    else                                      Serial.println("Unknown command");
   }
 }
 
 void reconnect() {
   while (!client.connected()) {
+    Serial.print("MQTT connect… ");
     if (client.connect(deviceName)) {
-      //Serial.print("MQTT state: ");
-      //Serial.println(client.state());
-      client.subscribe(deviceStatusTopic);
-      client.subscribe(deviceTopic); //make a list of all topics then loop through
-      //Serial.println("Subscribed to: " + String(mqtt_topic));
-      // Publish once at connection
-      client.publish(deviceStatusTopic, "On and Connected");// can be moved to specific methods that change a devices status
+      Serial.println("ok");
+      client.subscribe(deviceTopic);
+      setLed(digitalRead(LED1) == (LED_ACTIVE_LOW ? LOW : HIGH)); // publish current state
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      delay(5000);
+      Serial.print("failed rc="); Serial.println(client.state());
+      delay(1500);
     }
   }
 }
 
 void setup() {
+  pinMode(26, OUTPUT);          // same pin as in the diagram
+digitalWrite(26, LOW);  delay(300);
+digitalWrite(26, HIGH); delay(1000);   // LED should turn ON here
+digitalWrite(26, LOW);  delay(300);
+
   Serial.begin(115200);
-
-  //testing the led
   pinMode(LED1, OUTPUT);
-  digitalWrite(LED1, HIGH);
-  delay(2000);
-  digitalWrite(LED1, LOW);
+  // Start OFF
+  digitalWrite(LED1, LED_ACTIVE_LOW ? HIGH : LOW);
 
-  Serial.print("Connecting to WiFi");
+  Serial.print("WiFi…");
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWiFi connected. IP: " + WiFi.localIP().toString());
+  while (WiFi.status() != WL_CONNECTED) { delay(300); Serial.print('.'); }
+  Serial.print(" connected. IP="); Serial.println(WiFi.localIP());
 
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 }
 
 void loop() {
- if (!client.connected()) {
-    reconnect();
-  }
+  if (!client.connected()) reconnect();
   client.loop();
 }
