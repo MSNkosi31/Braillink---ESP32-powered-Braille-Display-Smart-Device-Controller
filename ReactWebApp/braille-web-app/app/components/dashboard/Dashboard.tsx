@@ -3,6 +3,7 @@ import Sidebar, {type TabType} from "../common/Sidebar";
 import DeviceCard from "../common/DeviceCard";
 import SystemLogs from "../common/SystemLogs";
 import BrailleDisplay from "../brailleDisplay/BrailleDisplay";
+import DevicesManagement from "../devices/DevicesManagement";
 
 interface Device {
     id: number;
@@ -112,7 +113,7 @@ const Dashboard: React.FC = () => {
                     </>
                 )}
 
-                {activeTab === "devices" && <div>Devices Mangement</div>}
+                {activeTab === "devices" && <DevicesManagement devices={devices} setDevices={setDevices} />}
                 {activeTab === "braille" && <div>Braille Display Settings</div>}
                 {activeTab === "notifications" && <div>Notification Center</div>}
                 {activeTab === "profile" && <div>Profile Settings</div>}
