@@ -15,10 +15,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     const navigate = useNavigate();
     const handleLogout = () => {
-        //add logic to clear tokens from local storage here
-
-        navigate("/")
-    }
+        // Add logic to clear tokens from local storage here
+        navigate("/");
+    };
 
     return (
         <aside className="w-64 bg-gray-800 dark:bg-gray-900 text-white p-4 flex flex-col h-screen sticky top-0">
@@ -30,21 +29,30 @@ const Sidebar: React.FC<SidebarProps> = ({
             <nav className="flex-1">
                 <ul className="space-y-2">
                     {[
-                        {id: "dashboard" as TabType, icon: <FaTachometerAlt/>, label: "Dashboard"},
-                        {id: "devices" as TabType, icon: <FaLightbulb/>, label: "Devices"},
-                        {id: "braille" as TabType, icon: <FaBraille/>, label: "Braille Display"},
-                        {id: "notifications" as TabType, icon: <FaBell/>, label: "Notifications"},
-                        {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"}
+                        { id: "dashboard" as TabType, icon: <FaTachometerAlt />, label: "Dashboard" },
+                        { id: "devices" as TabType, icon: <FaLightbulb />, label: "Devices" },
+                        { id: "braille" as TabType, icon: <FaBraille />, label: "Braille Display" },
+                        { id: "notifications" as TabType, icon: <FaBell />, label: "Notifications" },
+                        { id: "profile" as TabType, icon: <FaUser />, label: "Profile" }
                     ].map((item) => (
                         <li key={item.id}>
                             <button
                                 onClick={() => setActiveTab(item.id)}
-                                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg cursor-pointer transition-colors ${
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-colors ${
                                     activeTab === item.id ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-700"
                                 }`}
                             >
-                                <span className="text-lg">{item.icon} </span>
-                                <span>{item.label} </span>
+                                <div className="flex items-center space-x-3">
+                                    <span className="text-lg">{item.icon}</span>
+                                    <span>{item.label}</span>
+                                </div>
+
+                                {/* Show notification badge for Notifications only */}
+                                {item.id === "notifications" && (
+                                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                                        3
+                                    </span>
+                                )}
                             </button>
                         </li>
                     ))}
@@ -52,10 +60,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             </nav>
             <div className="pt-4 border-t border-gray-700">
                 <button
-                    onClick={handleLogout} 
+                    onClick={handleLogout}
                     className="flex items-center space-x-3 text-gray-300 hover:text-white px-4 py-3 w-full cursor-pointer"
                 >
-                    <FaSignOutAlt/>
+                    <FaSignOutAlt />
                     <span>Logout</span>
                 </button>
             </div>
