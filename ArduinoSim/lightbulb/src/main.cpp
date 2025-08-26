@@ -6,8 +6,8 @@ const char* password = "";
 
 const int LED1 = 26;
 
-const char* mqtt_server = "6.tcp.eu.ngrok.io";
-const int mqtt_port = 11771;
+const char* mqtt_server = "4.tcp.eu.ngrok.io";
+const int mqtt_port = 12944;
 const char* deviceStatusTopic = "kitchen/light_status";
 const char* deviceTopic = "kitchen/light";
 const char* deviceName = "ESP32Lightbulb";

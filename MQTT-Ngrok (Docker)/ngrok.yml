@@ -5,6 +5,6 @@ tunnels:
   mqtt-tcp:
     proto: tcp
     addr: mqtt:1883
-  mqtt-ws:
+  website:
     proto: http
-    addr: mqtt:9001
+    addr: devices-api:5000
