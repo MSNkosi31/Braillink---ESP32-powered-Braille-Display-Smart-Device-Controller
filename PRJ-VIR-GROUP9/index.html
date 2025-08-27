@@ -1,0 +1,147 @@
+<!-- Save this as index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Home System</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header hidden" id="mainHeader">
+    <div class="header__logo">SmartHome</div>
+    <nav class="header__nav">
+      <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+    </nav>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar hidden" id="mainSidebar">
+    <ul class="sidebar__menu">
+      <li><a href="#dashboard" class="sidebar__link">Dashboard</a></li>
+      <li><a href="#devices" class="sidebar__link">Devices</a></li>
+      <li><a href="#routines" class="sidebar__link">Routines</a></li>
+      <li><a href="#users" class="sidebar__link">Users</a></li>
+      <li><a href="#profile" class="sidebar__link">Settings</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Login Page -->
+    <section id="login" class="page">
+      <form id="loginForm" class="form">
+        <h2>Login</h2>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" required />
+          <small class="error-message" id="emailError"></small>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" minlength="6" required />
+          <small class="error-message" id="passwordError"></small>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dashboard" class="page hidden">
+      <h1>Dashboard</h1>
+      <div class="cards">
+        <div class="card">Devices Online: <span id="onlineCount">0</span></div>
+        <div class="card">Upcoming Routines: <span id="routineCount">0</span></div>
+      </div>
+      <div id="activityFeed" class="activity-feed"></div>
+    </section>
+
+    <!-- Devices -->
+    <section id="devices" class="page hidden">
+      <div class="page-header">
+        <h1>Devices</h1>
+        <button id="addDeviceBtn" class="btn btn-primary">Add Device</button>
+      </div>
+      <div id="deviceList" class="grid"></div>
+    </section>
+
+    <!-- Routines -->
+    <section id="routines" class="page hidden">
+      <div class="page-header">
+        <h1>Routines</h1>
+        <button id="addRoutineBtn" class="btn btn-primary">Create Routine</button>
+      </div>
+      <ul id="routineList" class="list"></ul>
+    </section>
+
+    <!-- Users -->
+    <section id="users" class="page hidden">
+      <div class="page-header">
+        <h1>Users</h1>
+        <button id="addUserBtn" class="btn btn-primary">Add User</button>
+      </div>
+      <table id="userTable" class="table">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- Profile -->
+    <section id="profile" class="page hidden">
+      <h1>Profile Settings</h1>
+      <form id="passwordForm" class="form">
+        <div class="form-group">
+          <label for="newPassword">New Password</label>
+          <input type="password" id="newPassword" minlength="6" required />
+          <small class="error-message" id="newPassError"></small>
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" required />
+          <small class="error-message" id="confirmPassError"></small>
+        </div>
+        <button type="submit" class="btn btn-primary">Change Password</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- Add Device Modal -->
+  <div id="addDeviceModal" class="modal hidden">
+    <div class="modal-content">
+      <span id="closeModal" class="close">&times;</span>
+      <h2>Add New Device</h2>
+      <form id="addDeviceForm" class="form">
+        <div class="form-group">
+          <label for="deviceName">Device Name</label>
+          <input type="text" id="deviceName" required />
+        </div>
+        <div class="form-group">
+          <label for="deviceType">Device Type</label>
+          <select id="deviceType" required>
+            <option value="" disabled selected>Select a type</option>
+            <option value="Light">Light</option>
+            <option value="Thermostat">Thermostat</option>
+            <option value="Security">Security</option>
+            <option value="Camera">Camera</option>
+            <option value="Sensor">Sensor</option>
+            <option value="Speaker">Speaker</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="deviceDescription">Description (optional)</label>
+          <textarea id="deviceDescription" rows="3"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Device</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="script.js"></script>
+</body>
+</html>
