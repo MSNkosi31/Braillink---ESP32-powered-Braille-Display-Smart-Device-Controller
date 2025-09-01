@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '~/contexts/AuthContext';
-import { 
-  FaUser, 
-  FaEnvelope, 
-  FaLock, 
-  FaBell, 
-  FaPalette, 
+import {
+  FaUser,
+  FaEnvelope,
+  FaLock,
+  FaBell,
+  FaPalette,
   FaAccessibleIcon,
   FaShieldAlt,
   FaEdit,
@@ -91,7 +91,7 @@ export default function ProfileSettings() {
 
   const handleProfileUpdate = async () => {
     if (!currentUser) return;
-    
+
     setLoading(true);
     try {
       // Mock profile update
@@ -136,11 +136,10 @@ export default function ProfileSettings() {
   const TabButton = ({ id, label, icon }: { id: string; label: string; icon: React.ReactNode }) => (
     <button
       onClick={() => setActiveTab(id as any)}
-      className={`flex items-center space-x-3 w-full px-4 py-3 text-left rounded-lg transition-colors duration-200 ${
-        activeTab === id
-          ? 'bg-indigo-100 text-indigo-700 border-l-4 border-indigo-500'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-      }`}
+      className={`flex items-center space-x-3 w-full px-4 py-3 text-left rounded-lg transition-colors duration-200 ${activeTab === id
+          ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-l-4 border-indigo-500'
+          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-100'
+        }`}
     >
       {icon}
       <span className="font-medium">{label}</span>
@@ -148,21 +147,20 @@ export default function ProfileSettings() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
-          <p className="mt-2 text-gray-600">Manage your account settings and preferences</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your account settings and preferences</p>
         </div>
 
         {/* Success/Error Messages */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg border-l-4 ${
-            message.type === 'success' 
-              ? 'bg-green-50 border-green-500 text-green-700' 
-              : 'bg-red-50 border-red-500 text-red-700'
-          }`}>
+          <div className={`mb-6 p-4 rounded-lg border-l-4 ${message.type === 'success'
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-300'
+              : 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300'
+            }`}>
             <div className="flex items-center">
               {message.type === 'success' ? <FaCheck className="mr-2" /> : <FaTimes className="mr-2" />}
               {message.text}
@@ -173,7 +171,7 @@ export default function ProfileSettings() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <nav className="space-y-2">
                 <TabButton
                   id="profile"
@@ -201,16 +199,16 @@ export default function ProfileSettings() {
 
           {/* Main Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+
               {/* Profile Information Tab */}
               {activeTab === 'profile' && (
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">Profile Information</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Profile Information</h2>
                     <button
                       onClick={() => setIsEditing(!isEditing)}
-                      className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                      className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                     >
                       <FaEdit />
                       <span>{isEditing ? 'Cancel' : 'Edit'}</span>
@@ -219,7 +217,7 @@ export default function ProfileSettings() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Full Name
                       </label>
                       <input
@@ -227,32 +225,32 @@ export default function ProfileSettings() {
                         value={profileData.displayName}
                         onChange={(e) => setProfileData({ ...profileData, displayName: e.target.value })}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 dark:disabled:bg-gray-700/50 disabled:text-gray-500 dark:disabled:text-gray-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Email Address
                       </label>
                       <input
                         type="email"
                         value={profileData.email}
                         disabled
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
                       />
-                      <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Email cannot be changed</p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Role
                       </label>
                       <select
                         value={profileData.role}
                         onChange={(e) => setProfileData({ ...profileData, role: e.target.value })}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 dark:disabled:bg-gray-700/50 disabled:text-gray-500 dark:disabled:text-gray-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       >
                         <option value="Administrator">Administrator</option>
                         <option value="Caregiver">Caregiver</option>
@@ -261,7 +259,7 @@ export default function ProfileSettings() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Phone Number
                       </label>
                       <input
@@ -269,13 +267,13 @@ export default function ProfileSettings() {
                         value={profileData.phoneNumber}
                         onChange={(e) => setProfileData({ ...profileData, phoneNumber: e.target.value })}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 dark:disabled:bg-gray-700/50 disabled:text-gray-500 dark:disabled:text-gray-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="+1 (555) 123-4567"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Organization
                       </label>
                       <input
@@ -283,7 +281,7 @@ export default function ProfileSettings() {
                         value={profileData.organization}
                         onChange={(e) => setProfileData({ ...profileData, organization: e.target.value })}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 dark:disabled:bg-gray-700/50 disabled:text-gray-500 dark:disabled:text-gray-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
                   </div>
@@ -292,7 +290,7 @@ export default function ProfileSettings() {
                     <div className="mt-6 flex justify-end space-x-3">
                       <button
                         onClick={() => setIsEditing(false)}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                       >
                         Cancel
                       </button>
@@ -312,14 +310,14 @@ export default function ProfileSettings() {
               {/* Security Tab */}
               {activeTab === 'security' && (
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Security Settings</h2>
-                  
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Security Settings</h2>
+
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Change Password</h3>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Current Password
                           </label>
                           <div className="relative">
@@ -327,12 +325,12 @@ export default function ProfileSettings() {
                               type={showPasswords.current ? 'text' : 'password'}
                               value={securityData.currentPassword}
                               onChange={(e) => setSecurityData({ ...securityData, currentPassword: e.target.value })}
-                              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             >
                               {showPasswords.current ? <FaEyeSlash /> : <FaEye />}
                             </button>
@@ -340,7 +338,7 @@ export default function ProfileSettings() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             New Password
                           </label>
                           <div className="relative">
@@ -348,12 +346,12 @@ export default function ProfileSettings() {
                               type={showPasswords.new ? 'text' : 'password'}
                               value={securityData.newPassword}
                               onChange={(e) => setSecurityData({ ...securityData, newPassword: e.target.value })}
-                              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             >
                               {showPasswords.new ? <FaEyeSlash /> : <FaEye />}
                             </button>
@@ -361,7 +359,7 @@ export default function ProfileSettings() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Confirm New Password
                           </label>
                           <div className="relative">
@@ -369,12 +367,12 @@ export default function ProfileSettings() {
                               type={showPasswords.confirm ? 'text' : 'password'}
                               value={securityData.confirmPassword}
                               onChange={(e) => setSecurityData({ ...securityData, confirmPassword: e.target.value })}
-                              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             >
                               {showPasswords.confirm ? <FaEyeSlash /> : <FaEye />}
                             </button>
@@ -398,16 +396,16 @@ export default function ProfileSettings() {
               {/* Notifications Tab */}
               {activeTab === 'notifications' && (
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Notification Preferences</h2>
-                  
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Notification Preferences</h2>
+
                   <div className="space-y-6">
                     {Object.entries(notifications).map(([key, value]) => (
                       <div key={key} className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm font-medium text-gray-900">
+                          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                             {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             {key === 'emailNotifications' && 'Receive notifications via email'}
                             {key === 'deviceAlerts' && 'Get alerts when devices status changes'}
                             {key === 'systemUpdates' && 'Notifications about system updates'}
@@ -416,14 +414,12 @@ export default function ProfileSettings() {
                         </div>
                         <button
                           onClick={() => setNotifications({ ...notifications, [key]: !value })}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            value ? 'bg-indigo-600' : 'bg-gray-200'
-                          }`}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'
+                            }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              value ? 'translate-x-6' : 'translate-x-1'
-                            }`}
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${value ? 'translate-x-6' : 'translate-x-1'
+                              }`}
                           />
                         </button>
                       </div>
@@ -435,16 +431,16 @@ export default function ProfileSettings() {
               {/* Accessibility Tab */}
               {activeTab === 'accessibility' && (
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Accessibility Settings</h2>
-                  
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Accessibility Settings</h2>
+
                   <div className="space-y-6">
                     {Object.entries(accessibility).map(([key, value]) => (
                       <div key={key} className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm font-medium text-gray-900">
+                          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                             {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             {key === 'highContrast' && 'Enable high contrast mode for better visibility'}
                             {key === 'largeText' && 'Increase text size throughout the application'}
                             {key === 'screenReader' && 'Optimize interface for screen readers'}
@@ -453,14 +449,12 @@ export default function ProfileSettings() {
                         </div>
                         <button
                           onClick={() => setAccessibility({ ...accessibility, [key]: !value })}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            value ? 'bg-indigo-600' : 'bg-gray-200'
-                          }`}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'
+                            }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              value ? 'translate-x-6' : 'translate-x-1'
-                            }`}
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${value ? 'translate-x-6' : 'translate-x-1'
+                              }`}
                           />
                         </button>
                       </div>
