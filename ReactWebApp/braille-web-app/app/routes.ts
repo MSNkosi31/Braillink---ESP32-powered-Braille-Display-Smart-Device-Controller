@@ -1,5 +1,4 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
-import Notifications from "./routes/notifications";
 
 
 export default [
