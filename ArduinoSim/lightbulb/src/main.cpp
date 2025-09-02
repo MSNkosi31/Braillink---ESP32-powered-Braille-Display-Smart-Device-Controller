@@ -6,15 +6,18 @@ const char* password = "";
 
 const int LED1 = 26;
 
+//=========== MQTT ================
+
+/*=========== MQTT variables ==============
+These variables are responsible for connecting the esp32 to the broker, the topics it subs/pubs to and its name to the rest of the network.*/
 const char* mqtt_server = "4.tcp.eu.ngrok.io";
 const int mqtt_port = 12944;
 const char* deviceStatusTopic = "kitchen/light_status";
 const char* deviceTopic = "kitchen/light";
 const char* deviceName = "ESP32Lightbulb";
 
-WiFiClient espClient;
-PubSubClient client(espClient);
-
+/*============MQTT Messaging=============
+This function is called everytime a message is recieved on the topic the device is subscribed to. It then parses the messege, prints in the serial for testing and then runs code to control the esp32 depending on the message. Everything but the code to control the esp32 funcrions is the exact same for all other devices*/ 
 void callback(char* topic, byte* message, unsigned int length) {
   Serial.print("Message arrived on topic: ");
   Serial.println(topic);
@@ -24,8 +27,9 @@ void callback(char* topic, byte* message, unsigned int length) {
     messageTemp += (char)message[i];
   }
   Serial.print("Message : ");
-  Serial.println(messageTemp);
+  Serial.println(messageTemp);//the recieved message
 
+//Logic to control the device depending on the message recieved. Changes per device 
   if (String(topic) == deviceTopic) {
     if (messageTemp.equalsIgnoreCase("ON")) {
       digitalWrite(LED1, HIGH);
@@ -38,18 +42,14 @@ void callback(char* topic, byte* message, unsigned int length) {
     }
   }
 }
-
+// Code to reconnect the esp32 to the broker, subscribe to all relatice topics adn publish that it is on and connected, all automatically
 void reconnect() {
-  while (!client.connected()) {
-    if (client.connect(deviceName)) {
-      //Serial.print("MQTT state: ");
-      //Serial.println(client.state());
+  while(!client.connected()) {
+    if(client.connect(deviceName)) {
       client.subscribe(deviceStatusTopic);
-      client.subscribe(deviceTopic); //make a list of all topics then loop through
-      //Serial.println("Subscribed to: " + String(mqtt_topic));
-      // Publish once at connection
-      client.publish(deviceStatusTopic, "On and Connected");// can be moved to specific methods that change a devices status
-    } else {
+      client.subscribe(deviceTopic);
+      client.publish(deviceStatusTopic, "On and Connected");
+    }else{
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
@@ -57,6 +57,9 @@ void reconnect() {
     }
   }
 }
+//===============WiFi===============
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 void setup() {
   Serial.begin(115200);
@@ -80,6 +83,7 @@ void setup() {
 }
 
 void loop() {
+  //loops to keep the esp32 connected to the broker
  if (!client.connected()) {
     reconnect();
   }
