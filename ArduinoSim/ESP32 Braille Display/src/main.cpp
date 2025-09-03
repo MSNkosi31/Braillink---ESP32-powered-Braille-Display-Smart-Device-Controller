@@ -5,9 +5,40 @@
 #include <string>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+// connecing the broker to the esp32
+#include <MD_MAX72XX.h>     
+#include <PubSubClient.h>   
+
 // =================== WiFi CONFIG ===================
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
+// ===== MQTT via ngrok TCP 
+const char* MQTT_HOST     = ""; //grok TCP host
+const uint16_t MQTT_PORT  = ; // TCP port
+const char* MQTT_CLIENTID = "braille-esp32-01"; // any unique id
+
+WiFiClient   espClient;  
+PubSubClient mqtt(espClient);
+
+void mqttSetup() {
+  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setKeepAlive(30);
+  mqtt.setSocketTimeout(15);
+  mqtt.setBufferSize(1024);
+}
+
+bool mqttConnect() {
+  Serial.print("[MQTT] connecting to ");
+  Serial.print(MQTT_HOST); Serial.print(":"); Serial.println(MQTT_PORT);
+
+  // Choose ONE of the connect lines:
+
+  // A) Anonymous broker (allow_anonymous true):
+  bool ok = mqtt.connect(MQTT_CLIENTID);
+  if (ok) Serial.println("[MQTT] connected (no pub/sub)");
+  else    { Serial.print("[MQTT] failed, rc="); Serial.println(mqtt.state()); }
+  return ok;
+}
 
 
 // =================== MATRIX DISPLAY CONFIG ===================
@@ -126,6 +157,10 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.print("System Ready");
 
+mqttSetup();
+mqttConnect();
+
+
   welcomeShown = true;
   lastActiveTime = millis() - activeDuration;
   matrix.clear();
@@ -135,7 +170,18 @@ void setup() {
 
 
 
+
+
 void loop() {
+  // Keep MQTT up 
+if (!mqtt.connected()) {
+  static unsigned long lastTry = 0;
+  if (millis() - lastTry > 3000) {  // retry every 3s
+    lastTry = millis();
+    mqttConnect();
+  }
+}
+mqtt.loop();
  // just safety check
   if (!welcomeShown) return; 
   
