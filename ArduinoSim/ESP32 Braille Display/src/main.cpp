@@ -5,10 +5,67 @@
 #include <string>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-// =================== WiFi CONFIG ===================
-const char* ssid = "Wokwi-GUEST";
-const char* password = "";
+// connecing the broker to the esp32
+#include <MD_MAX72XX.h>
+#include <PubSubClient.h>
 
+// =================== WiFi CONFIG ===================
+const char *ssid = "Wokwi-GUEST";
+const char *password = "";
+// ===== MQTT via ngrok TCP
+const char *MQTT_HOST = "4.tcp.eu.ngrok.io";    // grok TCP host
+const uint16_t MQTT_PORT = 12944;               // TCP port
+const char *MQTT_CLIENTID = "braille-esp32-01"; // any unique id
+
+WiFiClient espClient;
+PubSubClient mqtt(espClient);
+
+void mqttSetup()
+{
+  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setKeepAlive(30);
+  mqtt.setSocketTimeout(15);
+  mqtt.setBufferSize(1024);
+}
+void debugNet() {
+  IPAddress ip;
+  Serial.printf("[DNS] resolving %s ... ", MQTT_HOST);
+  if (WiFi.hostByName(MQTT_HOST, ip)) {
+    Serial.println(ip.toString());
+  } else {
+    Serial.println("FAILED");
+    return;  // can't resolve host
+  }
+
+  WiFiClient probe;
+  Serial.printf("[TCP] connecting to %s:%u ... ", ip.toString().c_str(), MQTT_PORT);
+  if (probe.connect(ip, MQTT_PORT)) {
+    Serial.println("OK");
+    probe.stop();
+  } else {
+    Serial.println("FAILED");
+  }
+}
+
+
+bool mqttConnect()
+{
+  Serial.print("[MQTT] connecting to ");
+  Serial.print(MQTT_HOST);
+  Serial.print(":");
+  Serial.println(MQTT_PORT);
+
+  bool ok = mqtt.connect(MQTT_CLIENTID /*, MQTT_USER, MQTT_PASS */);
+  if (ok)
+  {
+    Serial.println("[MQTT] connected (no pub/sub)");
+  }
+  else
+  {
+    Serial.print("[MQTT] failed, rc=");
+    Serial.println(mqtt.state()); // <= prints a code
+  }
+}
 
 // =================== MATRIX DISPLAY CONFIG ===================
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
@@ -20,7 +77,7 @@ const char* password = "";
 MD_MAX72XX matrix = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
 //=================== LCD SCREEN===================
-LiquidCrystal_I2C lcd(0x27, 16, 2);  
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // =================== BUTTONS ===================
 #define ENTER_PIN 12
@@ -35,47 +92,46 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #define PROX_PIN 15
 
 // =================== BRAILLE MAPPING ===================
-std::map<char,String> letters = {
-  {'a', "100000"},
-  {'b', "110000"},
-  {'c', "100100"},
-  {'d', "100110"},
-  {'e', "100010"},
-  {'f', "110100"},
-  {'g', "110110"},
-  {'h', "110010"},
-  {'i', "010100"},
-  {'j', "010110"},
-  {'k', "101000"},
-  {'l', "111000"},
-  {'m', "101100"},
-  {'n', "101110"},
-  {'o', "101010"},
-  {'p', "111100"},
-  {'q', "111110"},
-  {'r', "111010"},
-  {'s', "011100"},
-  {'t', "011110"},
-  {'u', "101001"},
-  {'v', "111001"},
-  {'w', "010111"},
-  {'x', "101101"},
-  {'y', "111101"},
-  {'z', "101011"},
-  {'#', "001111"},
-  {'0', "010110"},
-  {'1', "100000"},
-  {'2', "110000"},
-  {'3', "100100"},
-  {'4', "100110"},
-  {'5', "100010"}, 
-  {'6', "110100"},
-  {'8', "110010"},
-  {'9', "010100"}
-};
+std::map<char, String> letters = {
+    {'a', "100000"},
+    {'b', "110000"},
+    {'c', "100100"},
+    {'d', "100110"},
+    {'e', "100010"},
+    {'f', "110100"},
+    {'g', "110110"},
+    {'h', "110010"},
+    {'i', "010100"},
+    {'j', "010110"},
+    {'k', "101000"},
+    {'l', "111000"},
+    {'m', "101100"},
+    {'n', "101110"},
+    {'o', "101010"},
+    {'p', "111100"},
+    {'q', "111110"},
+    {'r', "111010"},
+    {'s', "011100"},
+    {'t', "011110"},
+    {'u', "101001"},
+    {'v', "111001"},
+    {'w', "010111"},
+    {'x', "101101"},
+    {'y', "111101"},
+    {'z', "101011"},
+    {'#', "001111"},
+    {'0', "010110"},
+    {'1', "100000"},
+    {'2', "110000"},
+    {'3', "100100"},
+    {'4', "100110"},
+    {'5', "100010"},
+    {'6', "110100"},
+    {'8', "110010"},
+    {'9', "010100"}};
 // =================== GLOBAL VARIABLES ===================
 
-String binLetter [13] = {"000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000"};//Sets all leds off
+String binLetter[13] = {"000000", "000000", "000000", "000000", "000000", "000000", "000000", "000000", "000000", "000000", "000000", "000000", "000000"}; // Sets all leds off
 int menuOption = 0;
 bool welcomeShown = false;
 bool wakeup = false;
@@ -91,13 +147,13 @@ void displayBrailleFormat(String c1, String c2, String c3, String c4, String c5,
 void showWelcomeMessage();
 void playBuzz(int freq = 1000, int duration = 200);
 
-
-void setup() {
+void setup()
+{
   Serial.begin(9600);
   matrix.begin();
   matrix.control(MD_MAX72XX::INTENSITY, 5);
   matrix.clear();
-  
+
   pinMode(NEXT_PIN, INPUT_PULLDOWN);
   pinMode(PREV_PIN, INPUT_PULLDOWN);
   pinMode(ENTER_PIN, INPUT_PULLDOWN);
@@ -110,7 +166,8 @@ void setup() {
 
   WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.print(".");
   }
@@ -119,12 +176,15 @@ void setup() {
   Serial.print(" IP Address: ");
   Serial.println(WiFi.localIP());
 
-  Wire.begin(16, 17);   // SDA = 16, SCL = 17
-  lcd.init();           // Initialize LCD
-  lcd.backlight();      // Turn on backlight
+  Wire.begin(16, 17); // SDA = 16, SCL = 17
+  lcd.init();         // Initialize LCD
+  lcd.backlight();    // Turn on backlight
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("System Ready");
+
+  mqttSetup();
+  mqttConnect();
 
   welcomeShown = true;
   lastActiveTime = millis() - activeDuration;
@@ -132,50 +192,64 @@ void setup() {
   matrix.update();
 }
 
+void loop()
+{
+  // Keep MQTT up
+  if (!mqtt.connected())
+  {
+    static unsigned long lastTry = 0;
+    if (millis() - lastTry > 3000)
+    { // retry every 3s
+      lastTry = millis();
+      mqttConnect();
+    }
+  }
+  mqtt.loop();
+  // just safety check
+  if (!welcomeShown)
+    return;
 
-
-
-void loop() {
- // just safety check
-  if (!welcomeShown) return; 
-  
   String main[] = {"lights", "doorlocks", "theromstat"};
   String lights[] = {"bedroom#1", "bedroom#2", "kitchen"};
- 
-  //Read the state of the different pins
-  bool nextPressed  = digitalRead(NEXT_PIN) == HIGH;
-  bool prevPressed  = digitalRead(PREV_PIN) == HIGH;
+
+  // Read the state of the different pins
+  bool nextPressed = digitalRead(NEXT_PIN) == HIGH;
+  bool prevPressed = digitalRead(PREV_PIN) == HIGH;
   bool enterPressed = digitalRead(ENTER_PIN) == HIGH;
-  bool backPressed  = digitalRead(BACK_PIN) == HIGH;
+  bool backPressed = digitalRead(BACK_PIN) == HIGH;
   bool motionDetected = digitalRead(PROX_PIN) == HIGH;
- 
-   bool activityAll = motionDetected || nextPressed || prevPressed || enterPressed || backPressed;
-   bool activityButtons =  nextPressed || prevPressed || enterPressed || backPressed;
-   bool isActive = (millis() - lastActiveTime) < activeDuration;
-   
-  if (!isActive && activityAll) {
+
+  bool activityAll = motionDetected || nextPressed || prevPressed || enterPressed || backPressed;
+  bool activityButtons = nextPressed || prevPressed || enterPressed || backPressed;
+  bool isActive = (millis() - lastActiveTime) < activeDuration;
+
+  if (!isActive && activityAll)
+  {
     wakeup = true;
-    AllWake = activityAll;  // true if button caused wake
+    AllWake = activityAll; // true if button caused wake
   }
 
   // If waking from OFF
-  if (wakeup) {
-    if (AllWake) {
+  if (wakeup)
+  {
+    if (AllWake)
+    {
       showWelcomeMessage();
       delay(2000);
       matrix.clear();
       matrix.update();
-   
     }
-     lastActiveTime = millis();
-       wakeup = false;
+    lastActiveTime = millis();
+    wakeup = false;
     AllWake = false;
     return;
   }
 
   // Check if we are within active duration window
-  if (isActive) {
-    if (activityAll) {
+  if (isActive)
+  {
+    if (activityAll)
+    {
       lastActiveTime = millis(); // keep alive
     }
     Serial.println("Display ON (motion/button active)");
@@ -190,60 +264,63 @@ void loop() {
     lcd.setCursor(0, 1);
     lcd.print(lights[menuOption]);
     // Handle buttons only if pressed
-    if (nextPressed) {
+    if (nextPressed)
+    {
       digitalWrite(BUZZ_PIN, HIGH);
       delay(1000); // debounce
       digitalWrite(BUZZ_PIN, LOW);
       menuOption++;
-      if (menuOption > 2) menuOption = 0;
+      if (menuOption > 2)
+        menuOption = 0;
     }
 
-    if (prevPressed) {
+    if (prevPressed)
+    {
       digitalWrite(BUZZ_PIN, HIGH);
       delay(500); // debounce
       digitalWrite(BUZZ_PIN, LOW);
       delay(500); // extra debounce
       menuOption--;
-      if (menuOption < 0) menuOption = 2;
+      if (menuOption < 0)
+        menuOption = 2;
     }
-  } 
-  else {
-    
+  }
+  else
+  {
+
     Serial.println("Display OFF (no motion/button for 60 seconds)");
     matrix.clear();
     matrix.update();
-    
+
     lcd.clear();
-    lcd.setCursor(0,0);
+    lcd.setCursor(0, 0);
     lcd.print("Goodbye");
-    lcd.setCursor(0,1);
+    lcd.setCursor(0, 1);
     lcd.print("User");
   }
 
   // read the state of the switch/button:
-  String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
+  String word[15] = {"bathroom", "kitchen", "bedroom", "lights", "doorlocks", "thermostats", "locked", "unlocked"};
 
-  
-  
-  //convertWord(word[r], binLetter);
+  // convertWord(word[r], binLetter);
 
   /*if(digitalRead(NEXT_PIN) == HIGH){
     Serial.println("The state changed HIGH");
     //digitalWrite(BLUE_LED, true);
     r++;}*/
 
-  //if(digitalRead(PREV_PIN) == HIGH){
-    //Serial.println("The state changed HIGH");
-    //digitalWrite(YELLOW_LED, true);
-    //r--;}
+  // if(digitalRead(PREV_PIN) == HIGH){
+  // Serial.println("The state changed HIGH");
+  // digitalWrite(YELLOW_LED, true);
+  // r--;}
 
-  //if(digitalRead(ENTER_PIN) == LOW){
-    //Serial.println("The state changed LOW ");
-    //digitalWrite(GREEN_LED, true);
-    //}
+  // if(digitalRead(ENTER_PIN) == LOW){
+  // Serial.println("The state changed LOW ");
+  // digitalWrite(GREEN_LED, true);
+  // }
 
-  //delay(10000);
-  
+  // delay(10000);
+
   /*String word[15] = {"bathroom","kitchen","bedroom","lights", "doorlocks", "thermostats", "locked", "unlocked"} ;
   //convertWord(word, binLetter);
   //delay(100000);
@@ -255,7 +332,6 @@ void loop() {
     i++;
     delay(3000);
   }*/
- 
 
   /*switch (menuOption) {
     case 0:
@@ -276,190 +352,195 @@ void loop() {
       delay(250);
       break;
   }*/
-delay(50);
-  
-//clearBin(); // Slow down loop to see messages
+  delay(50);
+
+  // clearBin(); // Slow down loop to see messages
 }
 
 // =================== FUNCTIONS ===================
-void playBuzz(int freq , int duration) {
-  tone(BUZZ_PIN, freq);     // Play tone at 'freq' Hz
-  delay(duration);          // Wait for 'duration' ms
-  noTone(BUZZ_PIN);         // Stop the tone
+void playBuzz(int freq, int duration)
+{
+  tone(BUZZ_PIN, freq); // Play tone at 'freq' Hz
+  delay(duration);      // Wait for 'duration' ms
+  noTone(BUZZ_PIN);     // Stop the tone
 }
 
-void clearBin(){
-  for (int i=0; i < 13; i++){// 13 is too hardcoded 
+void clearBin()
+{
+  for (int i = 0; i < 13; i++)
+  { // 13 is too hardcoded
     binLetter[i] = "000000";
   }
 }
 
-void showWelcomeMessage() {
+void showWelcomeMessage()
+{
   clearBin();
-  String welcome = "welcome User";  // welcome message (keep it <= 13 chars)
+  String welcome = "welcome User"; // welcome message (keep it <= 13 chars)
   convertWord(welcome, binLetter);
 
   matrix.update();
   lcd.clear();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("Welcome");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print("User");
 }
 
-void convertWord(String word, String binLetter[]){//this method converts words into a binary value used to turn certain leds on or off
-  
+void convertWord(String word, String binLetter[])
+{ // this method converts words into a binary value used to turn certain leds on or off
+
   Serial.println(word);
-  for(int i = 0; i < word.length(); i++){
-    binLetter[i] = letters[word[i]].c_str(); //convert this specific letter to the set binary in the map
+  for (int i = 0; i < word.length(); i++)
+  {
+    binLetter[i] = letters[word[i]].c_str(); // convert this specific letter to the set binary in the map
   }
 
   String cell1 = binLetter[0];
-  //Serial.println(cell1);// for testing
+  // Serial.println(cell1);// for testing
   String cell2 = binLetter[1];
-  //Serial.println(cell2);
+  // Serial.println(cell2);
   String cell3 = binLetter[2];
-  //Serial.println(cell3);
+  // Serial.println(cell3);
   String cell4 = binLetter[3];
-  //Serial.println(cell4);
+  // Serial.println(cell4);
   String cell5 = binLetter[4];
-  //Serial.println(cell5);
+  // Serial.println(cell5);
   String cell6 = binLetter[5];
-  //Serial.println(cell6);
+  // Serial.println(cell6);
   String cell7 = binLetter[6];
-  //Serial.println(cell7);
+  // Serial.println(cell7);
   String cell8 = binLetter[7];
-  //Serial.println(cell8);
+  // Serial.println(cell8);
   String cell9 = binLetter[8];
-  //Serial.println(cell9);
+  // Serial.println(cell9);
   String cell10 = binLetter[9];
-  //Serial.println(cell10);
+  // Serial.println(cell10);
   String cell11 = binLetter[10];
-  //Serial.println(cell11);
+  // Serial.println(cell11);
   String cell12 = binLetter[11];
-  //Serial.println(cell12);
+  // Serial.println(cell12);
   String cell13 = binLetter[12];
-  //Serial.println(cell13);
-  displayBrailleFormat(cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9, cell10, cell11, cell12, cell13);   
+  // Serial.println(cell13);
+  displayBrailleFormat(cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9, cell10, cell11, cell12, cell13);
 }
-void displayBrailleFormat(String cell1, String cell2, String cell3, String cell4, String cell5, String cell6, String cell7, String cell8, String cell9, String cell10, String cell11, String cell12, String cell13) {
-//this sucked to hell, DON'T TOUCH!!!! 
-  //CELL1
-    matrix.setPoint(1, 57, cell1[0]- '0');
-    matrix.setPoint(3, 57, cell1[1]- '0');
-    matrix.setPoint(5, 57, cell1[2]- '0');
+void displayBrailleFormat(String cell1, String cell2, String cell3, String cell4, String cell5, String cell6, String cell7, String cell8, String cell9, String cell10, String cell11, String cell12, String cell13)
+{
+  // this sucked to hell, DON'T TOUCH!!!!
+  // CELL1
+  matrix.setPoint(1, 57, cell1[0] - '0');
+  matrix.setPoint(3, 57, cell1[1] - '0');
+  matrix.setPoint(5, 57, cell1[2] - '0');
 
-    matrix.setPoint(1, 59, cell1[3]- '0');
-    matrix.setPoint(3, 59, cell1[4]- '0');
-    matrix.setPoint(5, 59, cell1[5]- '0');
+  matrix.setPoint(1, 59, cell1[3] - '0');
+  matrix.setPoint(3, 59, cell1[4] - '0');
+  matrix.setPoint(5, 59, cell1[5] - '0');
 
-    //CELL2
-    matrix.setPoint(1, 62, cell2[0]- '0');
-    matrix.setPoint(3, 62, cell2[1]- '0');
-    matrix.setPoint(5, 62, cell2[2]- '0');
+  // CELL2
+  matrix.setPoint(1, 62, cell2[0] - '0');
+  matrix.setPoint(3, 62, cell2[1] - '0');
+  matrix.setPoint(5, 62, cell2[2] - '0');
 
-    matrix.setPoint(1, 48, cell2[3]- '0');
-    matrix.setPoint(3, 48, cell2[4]- '0');
-    matrix.setPoint(5, 48, cell2[5]- '0');
+  matrix.setPoint(1, 48, cell2[3] - '0');
+  matrix.setPoint(3, 48, cell2[4] - '0');
+  matrix.setPoint(5, 48, cell2[5] - '0');
 
-    //CELL3
-    matrix.setPoint(1, 51, cell3[0]- '0');
-    matrix.setPoint(3, 51, cell3[1]- '0');
-    matrix.setPoint(5, 51, cell3[2]- '0');
+  // CELL3
+  matrix.setPoint(1, 51, cell3[0] - '0');
+  matrix.setPoint(3, 51, cell3[1] - '0');
+  matrix.setPoint(5, 51, cell3[2] - '0');
 
-    matrix.setPoint(1, 53, cell3[3]- '0');
-    matrix.setPoint(3, 53, cell3[4]- '0');
-    matrix.setPoint(5, 53, cell3[5]- '0');
+  matrix.setPoint(1, 53, cell3[3] - '0');
+  matrix.setPoint(3, 53, cell3[4] - '0');
+  matrix.setPoint(5, 53, cell3[5] - '0');
 
-    //CELL4
-    matrix.setPoint(1, 40, cell4[0]- '0');
-    matrix.setPoint(3, 40, cell4[1]- '0');
-    matrix.setPoint(5, 40, cell4[2]- '0');
+  // CELL4
+  matrix.setPoint(1, 40, cell4[0] - '0');
+  matrix.setPoint(3, 40, cell4[1] - '0');
+  matrix.setPoint(5, 40, cell4[2] - '0');
 
-    matrix.setPoint(1, 42, cell4[3]- '0');
-    matrix.setPoint(3, 42, cell4[4]- '0');
-    matrix.setPoint(5, 42, cell4[5]- '0');
+  matrix.setPoint(1, 42, cell4[3] - '0');
+  matrix.setPoint(3, 42, cell4[4] - '0');
+  matrix.setPoint(5, 42, cell4[5] - '0');
 
-    //CELL5
-    matrix.setPoint(1, 45, cell5[0]- '0');
-    matrix.setPoint(3, 45, cell5[1]- '0');
-    matrix.setPoint(5, 45, cell5[2]- '0');
+  // CELL5
+  matrix.setPoint(1, 45, cell5[0] - '0');
+  matrix.setPoint(3, 45, cell5[1] - '0');
+  matrix.setPoint(5, 45, cell5[2] - '0');
 
-    matrix.setPoint(1, 47, cell5[3]- '0');
-    matrix.setPoint(3, 47, cell5[4]- '0');
-    matrix.setPoint(5, 47, cell5[5]- '0');
+  matrix.setPoint(1, 47, cell5[3] - '0');
+  matrix.setPoint(3, 47, cell5[4] - '0');
+  matrix.setPoint(5, 47, cell5[5] - '0');
 
+  // CELL6
+  matrix.setPoint(1, 34, cell6[0] - '0');
+  matrix.setPoint(3, 34, cell6[1] - '0');
+  matrix.setPoint(5, 34, cell6[2] - '0');
 
-    //CELL6
-    matrix.setPoint(1, 34, cell6[0]- '0');
-    matrix.setPoint(3, 34, cell6[1]- '0');
-    matrix.setPoint(5, 34, cell6[2]- '0');
+  matrix.setPoint(1, 36, cell6[3] - '0');
+  matrix.setPoint(3, 36, cell6[4] - '0');
+  matrix.setPoint(5, 36, cell6[5] - '0');
 
-    matrix.setPoint(1, 36, cell6[3]- '0');
-    matrix.setPoint(3, 36, cell6[4]- '0');
-    matrix.setPoint(5, 36, cell6[5]- '0');
+  // CELL7
+  matrix.setPoint(1, 39, cell7[0] - '0');
+  matrix.setPoint(3, 39, cell7[1] - '0');
+  matrix.setPoint(5, 39, cell7[2] - '0');
 
+  matrix.setPoint(1, 25, cell7[3] - '0');
+  matrix.setPoint(3, 25, cell7[4] - '0');
+  matrix.setPoint(5, 25, cell7[5] - '0');
 
-    //CELL7
-    matrix.setPoint(1, 39, cell7[0]- '0');
-    matrix.setPoint(3, 39, cell7[1]- '0');
-    matrix.setPoint(5, 39, cell7[2]- '0');
+  // CELL8
+  matrix.setPoint(1, 28, cell8[0] - '0');
+  matrix.setPoint(3, 28, cell8[1] - '0');
+  matrix.setPoint(5, 28, cell8[2] - '0');
 
-    matrix.setPoint(1, 25, cell7[3]- '0');
-    matrix.setPoint(3, 25, cell7[4]- '0');
-    matrix.setPoint(5, 25, cell7[5]- '0');
+  matrix.setPoint(1, 30, cell8[3] - '0');
+  matrix.setPoint(3, 30, cell8[4] - '0');
+  matrix.setPoint(5, 30, cell8[5] - '0');
 
-    //CELL8
-    matrix.setPoint(1, 28, cell8[0]- '0');
-    matrix.setPoint(3, 28, cell8[1]- '0');
-    matrix.setPoint(5, 28, cell8[2]- '0');
+  // CELL9
+  matrix.setPoint(1, 17, cell9[0] - '0');
+  matrix.setPoint(3, 17, cell9[1] - '0');
+  matrix.setPoint(5, 17, cell9[2] - '0');
 
-    matrix.setPoint(1, 30, cell8[3]- '0');
-    matrix.setPoint(3, 30, cell8[4]- '0');
-    matrix.setPoint(5, 30, cell8[5]- '0');
+  matrix.setPoint(1, 19, cell9[3] - '0');
+  matrix.setPoint(3, 19, cell9[4] - '0');
+  matrix.setPoint(5, 19, cell9[5] - '0');
 
-    //CELL9
-    matrix.setPoint(1, 17, cell9[0]- '0');
-    matrix.setPoint(3, 17, cell9[1]- '0');
-    matrix.setPoint(5, 17, cell9[2]- '0');
+  // CELL10
+  matrix.setPoint(1, 22, cell10[0] - '0');
+  matrix.setPoint(3, 22, cell10[1] - '0');
+  matrix.setPoint(5, 22, cell10[2] - '0');
 
-    matrix.setPoint(1, 19, cell9[3]- '0');
-    matrix.setPoint(3, 19, cell9[4]- '0');
-    matrix.setPoint(5, 19, cell9[5]- '0');
+  matrix.setPoint(1, 8, cell10[3] - '0');
+  matrix.setPoint(3, 8, cell10[4] - '0');
+  matrix.setPoint(5, 8, cell10[5] - '0');
 
-    //CELL10
-    matrix.setPoint(1, 22, cell10[0]- '0');
-    matrix.setPoint(3, 22, cell10[1]- '0');
-    matrix.setPoint(5, 22, cell10[2]- '0');
+  // CELL11
+  matrix.setPoint(1, 11, cell11[0] - '0');
+  matrix.setPoint(3, 11, cell11[1] - '0');
+  matrix.setPoint(5, 11, cell11[2] - '0');
 
-    matrix.setPoint(1, 8, cell10[3]- '0');
-    matrix.setPoint(3, 8, cell10[4]- '0');
-    matrix.setPoint(5, 8, cell10[5]- '0');
+  matrix.setPoint(1, 13, cell11[3] - '0');
+  matrix.setPoint(3, 13, cell11[4] - '0');
+  matrix.setPoint(5, 13, cell11[5] - '0');
 
-    //CELL11
-    matrix.setPoint(1, 11, cell11[0]- '0');
-    matrix.setPoint(3, 11, cell11[1]- '0');
-    matrix.setPoint(5, 11, cell11[2]- '0');
+  // CELL12
+  matrix.setPoint(1, 0, cell12[0] - '0');
+  matrix.setPoint(3, 0, cell12[1] - '0');
+  matrix.setPoint(5, 0, cell12[2] - '0');
 
-    matrix.setPoint(1, 13, cell11[3]- '0');
-    matrix.setPoint(3, 13, cell11[4]- '0');
-    matrix.setPoint(5, 13, cell11[5]- '0');
+  matrix.setPoint(1, 2, cell12[3] - '0');
+  matrix.setPoint(3, 2, cell12[4] - '0');
+  matrix.setPoint(5, 2, cell12[5] - '0');
 
-    //CELL12
-    matrix.setPoint(1, 0, cell12[0]- '0');
-    matrix.setPoint(3, 0, cell12[1]- '0');
-    matrix.setPoint(5, 0, cell12[2]- '0');
+  // CELL12
+  matrix.setPoint(1, 5, cell12[0] - '0');
+  matrix.setPoint(3, 5, cell12[1] - '0');
+  matrix.setPoint(5, 5, cell12[2] - '0');
 
-    matrix.setPoint(1, 2, cell12[3]- '0');
-    matrix.setPoint(3, 2, cell12[4]- '0');
-    matrix.setPoint(5, 2, cell12[5]- '0');
-
-    //CELL12
-    matrix.setPoint(1, 5, cell12[0]- '0');
-    matrix.setPoint(3, 5, cell12[1]- '0');
-    matrix.setPoint(5, 5, cell12[2]- '0');
-
-    matrix.setPoint(1, 7, cell12[3]- '0');
-    matrix.setPoint(3, 7, cell12[4]- '0');
-    matrix.setPoint(5, 7, cell12[5]- '0');
+  matrix.setPoint(1, 7, cell12[3] - '0');
+  matrix.setPoint(3, 7, cell12[4] - '0');
+  matrix.setPoint(5, 7, cell12[5] - '0');
 }
