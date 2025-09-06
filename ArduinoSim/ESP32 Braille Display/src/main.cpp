@@ -35,7 +35,7 @@ String mainMenuDynamic[10]; // max 10 items
 MD_MAX72XX matrix = MD_MAX72XX(MD_MAX72XX::PAROLA_HW, CS_PIN, MAX_DEVICES); // DATA_PIN, CLK_PIN,
 
 //=================== LCD SCREEN===================
-LiquidCrystal_I2C lcd(0x27, 16, 2);  
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // =================== BUTTONS ===================
 #define ENTER_PIN 12
@@ -54,44 +54,43 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #define PROX_PIN 15
 
 // =================== BRAILLE MAPPING ===================
-std::map<char,String> letters = {
-  {'a', "100000"},
-  {'b', "110000"},
-  {'c', "100100"},
-  {'d', "100110"},
-  {'e', "100010"},
-  {'f', "110100"},
-  {'g', "110110"},
-  {'h', "110010"},
-  {'i', "010100"},
-  {'j', "010110"},
-  {'k', "101000"},
-  {'l', "111000"},
-  {'m', "101100"},
-  {'n', "101110"},
-  {'o', "101010"},
-  {'p', "111100"},
-  {'q', "111110"},
-  {'r', "111010"},
-  {'s', "011100"},
-  {'t', "011110"},
-  {'u', "101001"},
-  {'v', "111001"},
-  {'w', "010111"},
-  {'x', "101101"},
-  {'y', "111101"},
-  {'z', "101011"},
-  {'#', "001111"},
-  {'0', "010110"},
-  {'1', "100000"},
-  {'2', "110000"},
-  {'3', "100100"},
-  {'4', "100110"},
-  {'5', "100010"}, 
-  {'6', "110100"},
-  {'8', "110010"},
-  {'9', "010100"}
-};
+std::map<char, String> letters = {
+    {'a', "100000"},
+    {'b', "110000"},
+    {'c', "100100"},
+    {'d', "100110"},
+    {'e', "100010"},
+    {'f', "110100"},
+    {'g', "110110"},
+    {'h', "110010"},
+    {'i', "010100"},
+    {'j', "010110"},
+    {'k', "101000"},
+    {'l', "111000"},
+    {'m', "101100"},
+    {'n', "101110"},
+    {'o', "101010"},
+    {'p', "111100"},
+    {'q', "111110"},
+    {'r', "111010"},
+    {'s', "011100"},
+    {'t', "011110"},
+    {'u', "101001"},
+    {'v', "111001"},
+    {'w', "010111"},
+    {'x', "101101"},
+    {'y', "111101"},
+    {'z', "101011"},
+    {'#', "001111"},
+    {'0', "010110"},
+    {'1', "100000"},
+    {'2', "110000"},
+    {'3', "100100"},
+    {'4', "100110"},
+    {'5', "100010"},
+    {'6', "110100"},
+    {'8', "110010"},
+    {'9', "010100"}};
 // =================== GLOBAL VARIABLES ===================
 
 String binLetter [13] = {"000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000"};//Sets all leds off
@@ -140,7 +139,7 @@ void setup() {
   matrix.begin();
   matrix.control(MD_MAX72XX::INTENSITY, 5);
   matrix.clear();
-  
+
   pinMode(NEXT_PIN, INPUT_PULLDOWN);
   pinMode(PREV_PIN, INPUT_PULLDOWN);
   pinMode(ENTER_PIN, INPUT_PULLDOWN);
@@ -156,7 +155,8 @@ void setup() {
 
   WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.print(".");
   }
@@ -165,12 +165,15 @@ void setup() {
   Serial.print(" IP Address: ");
   Serial.println(WiFi.localIP());
 
-  Wire.begin(16, 17);   // SDA = 16, SCL = 17
-  lcd.init();           // Initialize LCD
-  lcd.backlight();      // Turn on backlight
+  Wire.begin(16, 17); // SDA = 16, SCL = 17
+  lcd.init();         // Initialize LCD
+  lcd.backlight();    // Turn on backlight
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("System Ready");
+
+  mqttSetup();
+  mqttConnect();
 
   welcomeShown = true;
   lastActiveTime = millis() - activeDuration;
@@ -227,7 +230,7 @@ void loop() {
 
   //Read the state of the different pins
   bool enterPressed = digitalRead(ENTER_PIN) == HIGH;
-  bool backPressed  = digitalRead(BACK_PIN) == HIGH;
+  bool backPressed = digitalRead(BACK_PIN) == HIGH;
   bool motionDetected = digitalRead(PROX_PIN) == HIGH;
  
   bool activityAll = motionDetected || nextTruned || prevTurned || enterPressed || backPressed;
@@ -236,16 +239,20 @@ void loop() {
    
   if (!isActive && activityAll) {
     wakeup = true;
-    AllWake = activityAll;  // true if button caused wake
+    AllWake = activityAll; // true if button caused wake
   }
 
   // If waking from OFF
-  if (wakeup) {
-    if (AllWake) {
+  if (wakeup)
+  {
+    if (AllWake)
+    {
       showWelcomeMessage();
       delay(2000); 
       updateMenu(0, mainMenuDynamic, mainMenuCount);
     }
+    lastActiveTime = millis();
+    wakeup = false;
     lastActiveTime = millis();
     wakeup = false;
     AllWake = false;
@@ -253,8 +260,10 @@ void loop() {
   }
 
   // Check if we are within active duration window
-  if (isActive) {
-    if (activityAll) {
+  if (isActive)
+  {
+    if (activityAll)
+    {
       lastActiveTime = millis(); // keep alive
     }
     //Serial.println("Display ON (motion/button active)");
@@ -425,22 +434,25 @@ void playBuzz(int freq , int duration) {
   noTone(BUZZ_PIN);         // Stop the tone
 }
 
-void clearBin(){
-  for (int i=0; i < 13; i++){// 13 is too hardcoded 
+void clearBin()
+{
+  for (int i = 0; i < 13; i++)
+  { // 13 is too hardcoded
     binLetter[i] = "000000";
   }
 }
 
-void showWelcomeMessage() {
+void showWelcomeMessage()
+{
   clearBin();
-  String welcome = "welcome User";  // welcome message (keep it <= 13 chars)
+  String welcome = "welcome User"; // welcome message (keep it <= 13 chars)
   convertWord(welcome, binLetter);
 
   matrix.update();
   lcd.clear();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("Welcome");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print("User");
 }
 
