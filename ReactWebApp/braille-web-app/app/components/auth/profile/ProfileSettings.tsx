@@ -45,7 +45,7 @@ interface AccessibilitySettings {
 }
 
 export default function ProfileSettings() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, updateProfile, changePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications' | 'accessibility'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -94,14 +94,17 @@ export default function ProfileSettings() {
 
     setLoading(true);
     try {
-      // Mock profile update
-      setTimeout(() => {
-        setIsEditing(false);
-        showMessage('success', 'Profile updated successfully!');
-        setLoading(false);
-      }, 1000);
+      await updateProfile({
+        displayName: profileData.displayName,
+        phoneNumber: profileData.phoneNumber,
+        organization: profileData.organization,
+        role: profileData.role as 'admin' | 'caregiver' | 'family'
+      });
+      setIsEditing(false);
+      showMessage('success', 'Profile updated successfully!');
     } catch (error) {
       showMessage('error', 'Failed to update profile. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -121,14 +124,12 @@ export default function ProfileSettings() {
 
     setLoading(true);
     try {
-      // Mock password update
-      setTimeout(() => {
-        setSecurityData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        showMessage('success', 'Password updated successfully!');
-        setLoading(false);
-      }, 1000);
+      await changePassword(securityData.currentPassword, securityData.newPassword);
+      setSecurityData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showMessage('success', 'Password updated successfully!');
     } catch (error: any) {
-      showMessage('error', 'Failed to update password. Please try again.');
+      showMessage('error', error.message || 'Failed to update password. Please try again.');
+    } finally {
       setLoading(false);
     }
   };

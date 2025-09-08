@@ -1,9 +1,11 @@
 import React from 'react';
 import { FaBell, FaInfoCircle } from 'react-icons/fa';
+import ProtectedRoute from '~/components/common/ProtectedRoute';
 
 export default function Notifications() {
   return (
-    <div className="p-6">
+    <ProtectedRoute>
+      <div className="p-6">
       <div className="flex items-center mb-6">
         <FaBell className="text-2xl text-indigo-600 mr-3" />
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
@@ -44,6 +46,7 @@ export default function Notifications() {
         </div>
         */}
       </div>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

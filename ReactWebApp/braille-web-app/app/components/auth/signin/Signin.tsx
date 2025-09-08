@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaBraille, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaBraille, FaEye, FaEyeSlash, FaGoogle } from 'react-icons/fa';
+import { useAuth } from '~/contexts/AuthContext';
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -10,7 +11,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
   const navigate = useNavigate();
+  const { login, loginWithGoogle, resetPassword } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -25,17 +31,43 @@ export default function Login() {
     setIsLoading(true);
     setError('');
 
-    try {     
-      //need to add real authentication logic(this is just for demo purposes)
-      if (formData.email === 'admin@gmail.com' && formData.password === 'admin123') {
-        navigate('/dashboard');
-      } else {
-        throw new Error('Invalid credentials');
-      }
+    try {
+      await login(formData.email, formData.password);
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      await loginWithGoogle();
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetMessage('');
+
+    try {
+      await resetPassword(resetEmail);
+      setResetMessage('Password reset email sent! Check your inbox.');
+      setResetEmail('');
+    } catch (err) {
+      setResetMessage(err instanceof Error ? err.message : 'Failed to send reset email.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -147,12 +179,13 @@ export default function Login() {
               </div>
 
               <div className="text-sm">
-                <Link
-                  to="/forgot-password"
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(!showForgotPassword)}
                   className="font-medium text-indigo-600 hover:text-indigo-500"
                 >
                   Forgot your password?
-                </Link>
+                </button>
               </div>
             </div>
 
@@ -193,7 +226,64 @@ export default function Login() {
                 )}
               </button>
             </div>
+
+            {/* Google Login Button */}
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+                className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+              >
+                <FaGoogle className="mr-3 h-5 w-5 text-red-500" />
+                Continue with Google
+              </button>
+            </div>
           </form>
+
+          {/* Password Reset Form */}
+          {showForgotPassword && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Reset Password</h3>
+              <form onSubmit={handlePasswordReset} className="space-y-3">
+                <div>
+                  <input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                {resetMessage && (
+                  <div className={`text-sm ${resetMessage.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>
+                    {resetMessage}
+                  </div>
+                )}
+                <div className="flex space-x-2">
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="flex-1 py-2 px-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {resetLoading ? 'Sending...' : 'Send Reset Email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setResetEmail('');
+                      setResetMessage('');
+                    }}
+                    className="flex-1 py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           <div className="mt-6">
             <div className="relative">

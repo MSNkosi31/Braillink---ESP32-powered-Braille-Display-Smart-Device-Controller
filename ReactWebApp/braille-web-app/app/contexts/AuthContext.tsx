@@ -1,18 +1,24 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { auth } from '~/config/firebase';
+import { AuthService, AppUser, convertFirebaseUser } from '~/services/authService';
 
-// Mock user interface for demo purposes
-interface MockUser {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-}
+// Use the AppUser interface from authService
+type User = AppUser;
 
 interface AuthContextType {
-  currentUser: MockUser | null;
-  login: (email: string, password: string) => Promise<any>;
-  signup: (email: string, password: string, displayName: string) => Promise<any>;
+  currentUser: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (email: string, password: string, displayName: string, role: string) => Promise<User>;
   logout: () => Promise<void>;
-  loginWithGoogle: () => Promise<any>;
+  loginWithGoogle: () => Promise<User>;
+  resetPassword: (email: string) => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  sendEmailVerification: () => Promise<void>;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,86 +32,110 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock authentication functions for demo
-  function signup(email: string, password: string, displayName: string) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email && password && displayName) {
-          const mockUser: MockUser = {
-            uid: Date.now().toString(),
-            email: email,
-            displayName: displayName
-          };
-          setCurrentUser(mockUser);
-          localStorage.setItem('mockUser', JSON.stringify(mockUser));
-          resolve(mockUser);
-        } else {
-          reject(new Error('Please fill in all fields'));
-        }
-      }, 1000);
-    });
+  // Firebase authentication functions
+  async function signup(email: string, password: string, displayName: string, role: string = 'caregiver'): Promise<User> {
+    try {
+      return await AuthService.signUp(email, password, displayName, role);
+    } catch (error) {
+      throw error;
+    }
   }
 
-  function login(email: string, password: string) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email && password) {
-          const mockUser: MockUser = {
-            uid: Date.now().toString(),
-            email: email,
-            displayName: email.split('@')[0] // Use email prefix as display name
-          };
-          setCurrentUser(mockUser);
-          localStorage.setItem('mockUser', JSON.stringify(mockUser));
-          resolve(mockUser);
-        } else {
-          reject(new Error('Please fill in all fields'));
-        }
-      }, 1000);
-    });
+  async function login(email: string, password: string): Promise<User> {
+    try {
+      return await AuthService.signIn(email, password);
+    } catch (error) {
+      throw error;
+    }
   }
 
-  function logout() {
-    return new Promise<void>((resolve) => {
-      setCurrentUser(null);
-      localStorage.removeItem('mockUser');
-      resolve();
-    });
+  async function logout(): Promise<void> {
+    try {
+      await AuthService.signOut();
+    } catch (error) {
+      throw error;
+    }
   }
 
-  function loginWithGoogle() {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const mockUser: MockUser = {
-          uid: Date.now().toString(),
-          email: 'demo@gmail.com',
-          displayName: 'Demo User'
-        };
-        setCurrentUser(mockUser);
-        localStorage.setItem('mockUser', JSON.stringify(mockUser));
-        resolve(mockUser);
-      }, 1000);
-    });
+  async function loginWithGoogle(): Promise<User> {
+    try {
+      return await AuthService.signInWithGoogle();
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async function resetPassword(email: string): Promise<void> {
+    try {
+      await AuthService.resetPassword(email);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async function updateProfile(updates: Partial<User>): Promise<void> {
+    try {
+      await AuthService.updateUserProfile(updates);
+      // Refresh current user data
+      const updatedUser = await AuthService.getCurrentUser();
+      if (updatedUser) {
+        setCurrentUser(updatedUser);
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    try {
+      await AuthService.changePassword(currentPassword, newPassword);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async function sendEmailVerification(): Promise<void> {
+    // This would typically be handled by Firebase Auth
+    // For now, we'll just log it
+    console.log('Email verification would be sent via Firebase Auth');
   }
 
   useEffect(() => {
-    // Check for existing user in localStorage
-    const savedUser = localStorage.getItem('mockUser');
-    if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        try {
+          const appUser = await convertFirebaseUser(firebaseUser);
+          setCurrentUser(appUser);
+        } catch (error) {
+          console.error('Error converting Firebase user:', error);
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
   const value = {
     currentUser,
+    loading,
     login,
     signup,
     logout,
-    loginWithGoogle
+    loginWithGoogle,
+    resetPassword,
+    updateProfile,
+    changePassword,
+    sendEmailVerification,
+    isAuthenticated: !!currentUser,
+    isAdmin: currentUser?.role === 'admin'
   };
 
   return (
