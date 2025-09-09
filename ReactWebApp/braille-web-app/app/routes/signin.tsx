@@ -11,21 +11,17 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Signin() {
-  const { isAuthenticated, loading } = useAuth();
-  
-  // Show loading while checking authentication
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
-      </div>
-    );
+  try {
+    const { isAuthenticated } = useAuth();
+    
+    // Redirect to dashboard if already authenticated
+    if (isAuthenticated) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    
+    return <Login />;
+  } catch (error) {
+    console.error('AuthContext error:', error);
+    return <Login />; // Show login form even if there's an error
   }
-  
-  // Redirect to dashboard if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return <Login />;
 }

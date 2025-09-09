@@ -1,7 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '~/config/firebase';
-import { AuthService, AppUser, convertFirebaseUser } from '~/services/authService';
+import { AuthService, convertFirebaseUser } from '~/services/authService';
+import type { AppUser } from '~/services/authService';
+
+// Define Firebase User type locally to avoid import issues
+interface FirebaseUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  emailVerified: boolean;
+}
 
 // Use the AppUser interface from authService
 type User = AppUser;
@@ -33,21 +42,39 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false for faster initial load
 
   // Firebase authentication functions
   async function signup(email: string, password: string, displayName: string, role: string = 'caregiver'): Promise<User> {
     try {
-      return await AuthService.signUp(email, password, displayName, role);
+      console.log('AuthContext: Starting signup for:', email);
+      const startTime = Date.now();
+      
+      const result = await AuthService.signUp(email, password, displayName, role);
+      
+      const endTime = Date.now();
+      console.log(`AuthContext: Signup completed in ${endTime - startTime}ms`);
+      
+      return result;
     } catch (error) {
+      console.error('AuthContext: Signup error:', error);
       throw error;
     }
   }
 
   async function login(email: string, password: string): Promise<User> {
     try {
-      return await AuthService.signIn(email, password);
+      console.log('AuthContext: Starting login for:', email);
+      const startTime = Date.now();
+      
+      const result = await AuthService.signIn(email, password);
+      
+      const endTime = Date.now();
+      console.log(`AuthContext: Login completed in ${endTime - startTime}ms`);
+      
+      return result;
     } catch (error) {
+      console.error('AuthContext: Login error:', error);
       throw error;
     }
   }
@@ -104,23 +131,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        try {
-          const appUser = await convertFirebaseUser(firebaseUser);
-          setCurrentUser(appUser);
-        } catch (error) {
-          console.error('Error converting Firebase user:', error);
+    try {
+      // Reasonable timeout for auth initialization
+      const timeoutId = setTimeout(() => {
+        console.warn('Firebase auth initialization timeout - setting loading to false');
+        setLoading(false);
+      }, 5000); // 5 second timeout
+
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+        clearTimeout(timeoutId); // Clear timeout when auth state changes
+        
+        if (firebaseUser) {
+          try {
+            const appUser = await convertFirebaseUser(firebaseUser);
+            setCurrentUser(appUser);
+          } catch (error) {
+            console.error('Error converting Firebase user:', error);
+            setCurrentUser(null);
+          }
+        } else {
           setCurrentUser(null);
         }
-      } else {
-        setCurrentUser(null);
-      }
-      setLoading(false);
-    });
+        setLoading(false);
+      });
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
+      // Cleanup subscription on unmount
+      return () => {
+        clearTimeout(timeoutId);
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('Error setting up auth state listener:', error);
+      setLoading(false);
+    }
   }, []);
 
   const value = {

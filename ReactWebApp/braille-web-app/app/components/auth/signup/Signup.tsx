@@ -14,7 +14,7 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, logout } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -43,9 +43,13 @@ export default function Signup() {
     
     try {
       await signup(formData.email, formData.password, formData.name, formData.role);
-      setSuccess('Account created successfully! Redirecting to dashboard...');
+      
+      // Log out the user after signup so they need to sign in manually
+      await logout();
+      
+      setSuccess('Account created successfully! Redirecting to sign in...');
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/');
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
