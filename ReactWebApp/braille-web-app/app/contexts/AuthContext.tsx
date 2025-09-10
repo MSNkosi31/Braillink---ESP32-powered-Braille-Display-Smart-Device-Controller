@@ -42,7 +42,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false); // Start with false for faster initial load
+  const [loading, setLoading] = useState(true); // Start with true to prevent premature redirects
 
   // Firebase authentication functions
   async function signup(email: string, password: string, displayName: string, role: string = 'caregiver'): Promise<User> {
@@ -81,8 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout(): Promise<void> {
     try {
+      console.log('Logging out user...');
       await AuthService.signOut();
+      // Clear local state immediately
+      setCurrentUser(null);
+      console.log('User logged out successfully');
     } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, clear local state
+      setCurrentUser(null);
       throw error;
     }
   }
@@ -136,23 +143,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const timeoutId = setTimeout(() => {
         console.warn('Firebase auth initialization timeout - setting loading to false');
         setLoading(false);
-      }, 5000); // 5 second timeout
+      }, 10000); // 10 second timeout
 
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
         clearTimeout(timeoutId); // Clear timeout when auth state changes
+        console.log('Auth state changed:', firebaseUser ? 'User logged in' : 'User logged out');
         
         if (firebaseUser) {
           try {
+            console.log('Converting Firebase user:', firebaseUser.email);
+            // Keep loading true while converting user
+            setLoading(true);
             const appUser = await convertFirebaseUser(firebaseUser);
             setCurrentUser(appUser);
+            console.log('User set in context:', appUser.email);
+            // Only set loading to false after user is fully loaded
+            setLoading(false);
+            console.log('Auth loading set to false - user fully loaded');
           } catch (error) {
             console.error('Error converting Firebase user:', error);
             setCurrentUser(null);
+            setLoading(false);
+            console.log('Auth loading set to false - error occurred');
           }
         } else {
+          console.log('No Firebase user, setting currentUser to null');
           setCurrentUser(null);
+          setLoading(false);
+          console.log('Auth loading set to false - no user');
         }
-        setLoading(false);
       });
 
       // Cleanup subscription on unmount
@@ -183,7 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

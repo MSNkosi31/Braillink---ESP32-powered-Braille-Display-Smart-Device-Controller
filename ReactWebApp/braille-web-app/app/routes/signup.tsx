@@ -11,12 +11,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Register() {
-  const { isAuthenticated } = useAuth();
-  
-  // Redirect to dashboard if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
+  // Let the Signup component handle the authentication flow
+  // Don't redirect here as it interferes with the signup process
   return <Signup />;
 }

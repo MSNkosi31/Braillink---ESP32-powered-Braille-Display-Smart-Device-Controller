@@ -8,13 +8,27 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { currentUser, isAuthenticated, isAdmin } = useAuth();
+  const { currentUser, isAuthenticated, isAdmin, loading } = useAuth();
   const location = useLocation();
 
-  // Skip loading check for faster response
+  console.log('ProtectedRoute - loading:', loading, 'isAuthenticated:', isAuthenticated, 'currentUser:', currentUser?.email);
+
+  // Show loading spinner while authentication is being checked
+  if (loading) {
+    console.log('ProtectedRoute - showing loading spinner');
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Redirect to signin if not authenticated
   if (!isAuthenticated) {
+    console.log('ProtectedRoute - redirecting to signin, not authenticated');
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 

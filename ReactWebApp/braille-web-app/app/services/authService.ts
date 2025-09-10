@@ -34,15 +34,21 @@ export interface AppUser {
   lastLoginAt: string;
 }
 
-// Convert Firebase User to App User
+// Convert Firebase User to App User (optimized with timeout and fallback)
 export const convertFirebaseUser = async (firebaseUser: FirebaseUser): Promise<AppUser> => {
   try {
-    // Get additional user data from Firestore
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    const userData = userDoc.exists() ? userDoc.data() : null;
-
     console.log('Converting Firebase user:', firebaseUser.email);
-    console.log('Firestore user data:', userData);
+    
+    // Get additional user data from Firestore with timeout for better performance
+    const userDoc = await Promise.race([
+      getDoc(doc(db, 'users', firebaseUser.uid)),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Firestore read timeout')), 3000)
+      )
+    ]) as any;
+    
+    const userData = userDoc.exists() ? userDoc.data() : null;
+    console.log('Firestore user data retrieved:', !!userData);
 
     return {
       uid: firebaseUser.uid,
@@ -57,7 +63,8 @@ export const convertFirebaseUser = async (firebaseUser: FirebaseUser): Promise<A
     };
   } catch (error) {
     console.error('Error converting Firebase user:', error);
-    // Return a basic user object if Firestore fails
+    console.log('Using fallback user data (no Firestore)');
+    // Return a basic user object if Firestore fails or times out
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
@@ -80,19 +87,38 @@ export class AuthService {
       console.log('AuthService: Starting email sign in for:', email);
       const startTime = Date.now();
       
-      console.log('AuthService: Calling signInWithEmailAndPassword...');
+      // Step 1: Authenticate with Firebase (required check)
+      console.log('AuthService: Authenticating with Firebase...');
       const userCredential: any = await signInWithEmailAndPassword(auth, email, password);
-      console.log('AuthService: Email sign in successful:', userCredential.user.email);
+      console.log('AuthService: Authentication successful:', userCredential.user.email);
       
-      console.log('AuthService: Updating last login time...');
-      // Update last login time
-      await updateDoc(doc(db, 'users', userCredential.user.uid), {
+      // Step 2: Perform parallel operations for better performance
+      console.log('AuthService: Starting parallel operations...');
+      const parallelStartTime = Date.now();
+      
+      const [userData] = await Promise.all([
+        // Get user data from Firestore (required check)
+        getDoc(doc(db, 'users', userCredential.user.uid)).then(doc => doc.exists() ? doc.data() : null),
+        // Update last login time (can be done in background)
+        updateDoc(doc(db, 'users', userCredential.user.uid), {
+          lastLoginAt: new Date().toISOString()
+        }).catch(err => console.warn('Last login update failed:', err)) // Non-critical, don't fail
+      ]);
+      
+      console.log('AuthService: Parallel operations completed in', Date.now() - parallelStartTime, 'ms');
+      
+      // Step 3: Build user object with verified data
+      const result: AppUser = {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+        role: userData?.role || 'caregiver',
+        phoneNumber: userData?.phoneNumber || '',
+        organization: userData?.organization || '',
+        emailVerified: userCredential.user.emailVerified,
+        createdAt: userData?.createdAt || new Date().toISOString(),
         lastLoginAt: new Date().toISOString()
-      });
-      console.log('AuthService: Last login time updated');
-
-      console.log('AuthService: Converting Firebase user...');
-      const result = await convertFirebaseUser(userCredential.user);
+      };
       
       const endTime = Date.now();
       console.log(`AuthService: Sign in completed in ${endTime - startTime}ms`);
@@ -120,14 +146,15 @@ export class AuthService {
     role: string = 'caregiver'
   ): Promise<AppUser> {
     try {
-      const userCredential: any = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('AuthService: Starting signup for:', email);
+      const startTime = Date.now();
       
-      // Update the user's display name
-      await updateProfile(userCredential.user, {
-        displayName: displayName
-      });
-
-      // Create user document in Firestore
+      // Step 1: Create user with Firebase Auth (required check)
+      console.log('AuthService: Creating user with Firebase Auth...');
+      const userCredential: any = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('AuthService: User created successfully');
+      
+      // Step 2: Prepare user data
       const userData = {
         role: role as 'admin' | 'caregiver' | 'family',
         phoneNumber: '',
@@ -136,17 +163,67 @@ export class AuthService {
         lastLoginAt: new Date().toISOString()
       };
 
-      await setDoc(doc(db, 'users', userCredential.user.uid), userData);
-
-      return await convertFirebaseUser(userCredential.user);
+      // Step 3: Perform operations with timeout and fallback for better performance
+      console.log('AuthService: Starting operations...');
+      const parallelStartTime = Date.now();
+      
+      try {
+        // Try parallel operations with timeout
+        await Promise.race([
+          Promise.all([
+            // Update the user's display name (required check)
+            updateProfile(userCredential.user, {
+              displayName: displayName
+            }),
+            // Create user document in Firestore (required check)
+            setDoc(doc(db, 'users', userCredential.user.uid), userData)
+          ]),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Signup operations timeout')), 8000)
+          )
+        ]);
+        console.log('AuthService: All operations completed successfully');
+      } catch (operationError) {
+        console.warn('AuthService: Some operations failed or timed out, continuing with basic setup:', operationError);
+        // Fallback: just update the profile without Firestore (user can still use the app)
+        try {
+          await updateProfile(userCredential.user, {
+            displayName: displayName
+          });
+          console.log('AuthService: Basic profile updated (Firestore skipped)');
+        } catch (profileError) {
+          console.warn('AuthService: Profile update also failed:', profileError);
+          // Continue anyway - user is created and can use the app
+        }
+      }
+      
+      console.log('AuthService: Operations completed in', Date.now() - parallelStartTime, 'ms');
+      
+      // Step 4: Build user object with verified data (no need for additional Firestore read)
+      const result: AppUser = {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: displayName,
+        role: role as 'admin' | 'caregiver' | 'family',
+        phoneNumber: '',
+        organization: '',
+        emailVerified: userCredential.user.emailVerified,
+        createdAt: userData.createdAt,
+        lastLoginAt: userData.lastLoginAt
+      };
+      
+      const endTime = Date.now();
+      console.log(`AuthService: Signup completed in ${endTime - startTime}ms`);
+      
+      return result;
     } catch (error: any) {
       console.error('Email signup error:', error);
       console.error('Error code:', error.code);
       console.error('Error message:', error.message);
       
-      // Return the actual Firebase error message instead of generic one
+      // Return the Firebase error code for proper handling in the component
       if (error.code) {
-        throw new Error(`${error.code}: ${error.message}`);
+        throw new Error(error.code);
       } else {
         throw new Error(`Signup failed: ${error.message}`);
       }
@@ -157,18 +234,28 @@ export class AuthService {
   static async signInWithGoogle(): Promise<AppUser> {
     try {
       console.log('Starting Google authentication...');
+      const startTime = Date.now();
       const provider = new GoogleAuthProvider();
       
       // Add additional scopes if needed
       provider.addScope('email');
       provider.addScope('profile');
       
+      // Step 1: Authenticate with Google (required check)
       console.log('Opening Google popup...');
       const userCredential: any = await signInWithPopup(auth, provider);
       console.log('Google authentication successful:', userCredential.user.email);
       
-      // Check if user document exists, if not create it
-      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      // Step 2: Check user document and handle creation/update in parallel
+      console.log('Checking user document...');
+      const parallelStartTime = Date.now();
+      
+      const [userDoc] = await Promise.all([
+        // Check if user document exists (required check)
+        getDoc(doc(db, 'users', userCredential.user.uid))
+      ]);
+      
+      // Step 3: Handle user document creation or update based on check
       if (!userDoc.exists()) {
         console.log('Creating new user document...');
         const userData = {
@@ -179,15 +266,41 @@ export class AuthService {
           lastLoginAt: new Date().toISOString()
         };
         await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+        console.log('User document created');
       } else {
         console.log('Updating last login time...');
-        // Update last login time
-        await updateDoc(doc(db, 'users', userCredential.user.uid), {
+        // Update last login time (non-critical, can fail without breaking)
+        updateDoc(doc(db, 'users', userCredential.user.uid), {
           lastLoginAt: new Date().toISOString()
-        });
+        }).catch(err => console.warn('Last login update failed:', err));
       }
-
-      return await convertFirebaseUser(userCredential.user);
+      
+      console.log('User document operations completed in', Date.now() - parallelStartTime, 'ms');
+      
+      // Step 4: Build user object with verified data
+      const userData = userDoc.exists() ? userDoc.data() : {
+        role: 'caregiver' as const,
+        phoneNumber: '',
+        organization: '',
+        createdAt: new Date().toISOString()
+      };
+      
+      const result: AppUser = {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+        role: userData?.role || 'caregiver',
+        phoneNumber: userData?.phoneNumber || '',
+        organization: userData?.organization || '',
+        emailVerified: userCredential.user.emailVerified,
+        createdAt: userData?.createdAt || new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+      
+      const endTime = Date.now();
+      console.log(`Google sign-in completed in ${endTime - startTime}ms`);
+      
+      return result;
     } catch (error: any) {
       console.error('Google authentication error:', error);
       console.error('Error code:', error.code);

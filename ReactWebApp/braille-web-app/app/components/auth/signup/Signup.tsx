@@ -34,26 +34,68 @@ export default function Signup() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
       return;
     }
 
     setIsLoading(true);
+    setError('');
+    setSuccess('');
     
     try {
+      console.log('Starting signup process...');
+      setSuccess('Creating your account...');
+      
       await signup(formData.email, formData.password, formData.name, formData.role);
+      console.log('Signup successful, logging out...');
+      
+      setSuccess('Account created! Setting up your profile...');
       
       // Log out the user after signup so they need to sign in manually
       await logout();
+      console.log('Logout successful');
       
       setSuccess('Account created successfully! Redirecting to sign in...');
+      
+      // Clear form data
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        role: 'caregiver'
+      });
+      
+      // Redirect to sign in page after a very short delay
       setTimeout(() => {
         navigate('/');
-      }, 2000);
+      }, 500);
+      
+      setIsLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
-    } finally {
+      console.error('Signup error:', err);
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (err instanceof Error) {
+        // Handle specific Firebase error codes with user-friendly messages
+        if (err.message.includes('auth/email-already-in-use')) {
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (err.message.includes('auth/weak-password')) {
+          errorMessage = 'Password is too weak. Please choose a stronger password.';
+        } else if (err.message.includes('auth/invalid-email')) {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (err.message.includes('auth/operation-not-allowed')) {
+          errorMessage = 'Email signup is currently disabled. Please contact support.';
+        } else if (err.message.includes('auth/network-request-failed')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else {
+          // For other errors, show a generic message
+          errorMessage = 'Registration failed. Please try again.';
+        }
+      }
+      
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -96,6 +138,13 @@ export default function Signup() {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-red-700">{error}</p>
+                  {error.includes('already exists') && (
+                    <p className="text-sm text-red-600 mt-1">
+                      <Link to="/" className="underline hover:text-red-800">
+                        Click here to sign in
+                      </Link>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -288,7 +337,10 @@ export default function Signup() {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    Creating account...
+                    {success.includes('Creating') ? 'Creating account...' : 
+                     success.includes('Setting up') ? 'Setting up profile...' : 
+                     success.includes('successfully') ? 'Redirecting...' : 
+                     'Creating account...'}
                   </>
                 ) : (
                   'Create Account'
