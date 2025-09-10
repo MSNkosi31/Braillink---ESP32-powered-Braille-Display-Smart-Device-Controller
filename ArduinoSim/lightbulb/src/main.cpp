@@ -10,11 +10,16 @@ const int LED1 = 26;
 
 /*=========== MQTT variables ==============
 These variables are responsible for connecting the esp32 to the broker, the topics it subs/pubs to and its name to the rest of the network.*/
-const char* mqtt_server = "4.tcp.eu.ngrok.io";
-const int mqtt_port = 12944;
-const char* deviceStatusTopic = "kitchen/light_status";
-const char* deviceTopic = "kitchen/light";
-const char* deviceName = "ESP32Lightbulb";
+const char* mqtt_server = "2.tcp.eu.ngrok.io";
+const int mqtt_port = 17316;
+const char* deviceStatusTopic = "kitchen/Light1_status";
+const char* deviceTopic = "kitchen/Light1";
+const char* deviceName = "kitchen/Light1";
+
+//===============WiFi===============
+WiFiClient espClient;
+PubSubClient client(espClient);
+
 
 /*============MQTT Messaging=============
 This function is called everytime a message is recieved on the topic the device is subscribed to. It then parses the messege, prints in the serial for testing and then runs code to control the esp32 depending on the message. Everything but the code to control the esp32 funcrions is the exact same for all other devices*/ 
@@ -33,12 +38,11 @@ void callback(char* topic, byte* message, unsigned int length) {
   if (String(topic) == deviceTopic) {
     if (messageTemp.equalsIgnoreCase("ON")) {
       digitalWrite(LED1, HIGH);
-      Serial.println("Light has been turned on");
-      delay(2000); // blocks execution, consider removing later
+      //Serial.println("Light has been turned on");
     }
     else if (messageTemp.equalsIgnoreCase("OFF")) {
       digitalWrite(LED1, LOW);
-      Serial.println("Light has been turned off");
+      //Serial.println("Light has been turned off");
     }
   }
 }
@@ -57,9 +61,7 @@ void reconnect() {
     }
   }
 }
-//===============WiFi===============
-WiFiClient espClient;
-PubSubClient client(espClient);
+
 
 void setup() {
   Serial.begin(115200);
