@@ -42,13 +42,13 @@ void callback(char* topic, byte* message, unsigned int length) {
     }
   }
 }
-// Code to reconnect the esp32 to the broker, subscribe to all relatice topics adn publish that it is on and connected, all automatically
+// Code to reconnect the esp32 to the broker, subscribe to all relative topics and publish that it is on and connected, all automatically
 void reconnect() {
   while(!client.connected()) {
     if(client.connect(deviceName)) {
-      client.subscribe(deviceStatusTopic);
-      client.subscribe(deviceTopic);
-      client.publish(deviceStatusTopic, "On and Connected");
+      //const list = client.subscribe(deviceLIst/repsonse);//listens to this
+      client.subscribe(deviceTopic);//listen to my 
+      client.publish(deviceLIst);
     }else{
       Serial.print("failed, rc=");
       Serial.print(client.state());

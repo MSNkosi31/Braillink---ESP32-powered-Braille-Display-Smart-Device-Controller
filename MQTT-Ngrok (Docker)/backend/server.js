@@ -39,38 +39,37 @@ mqttClient.on('error', (err) => {
   console.error('MQTT error:', err);
 });
 
+// --- Handle incoming deviceList requests ---
 mqttClient.on('message', async (topic, payload) => {
   if (topic !== REQ_TOPIC) return;
-
-  // Optional: payload may include a correlationId or filter; handle if present
-  let correlationId;
-  try {
-    const msg = payload?.length ? JSON.parse(payload.toString()) : {};
-    correlationId = msg?.correlationId;
-  } catch { /* ignore parse errors */ }
 
   try {
     const devices = await Device.find().lean();
 
-    // Shape the list exactly for the ESP32:
-    const list = devices.map(d => ({
-      deviceName: d.deviceName,
-      deviceTopic: d.deviceTopic,
-      deviceStatusTopic: d.deviceStatusTopic
-    }));
+    // Group devices by roomName
+    const roomMap = {};
+    devices.forEach(d => {
+      const room = d.roomName || "Unassigned";
+      if (!roomMap[room]) {
+        roomMap[room] = [];
+      }
+      roomMap[room].push(d.deviceName);
+    });
 
-    const response = { devices: list };
-    if (correlationId) response.correlationId = correlationId;
+    // Convert to plaintext array
+    const roomStrings = Object.keys(roomMap).map(roomName => {
+      return `${roomName}-${roomMap[roomName].join(';')}`;
+    });
 
-    mqttClient.publish(RES_TOPIC, JSON.stringify(response), { qos: 1 }, (err) => {
+    // Publish as plain text (comma-separated list)
+    const payloadStr = roomStrings.join(',');
+    mqttClient.publish(RES_TOPIC, payloadStr, { qos: 1 }, (err) => {
       if (err) console.error('Publish error:', err);
-      else console.log(`Published ${list.length} devices to "${RES_TOPIC}"`);
+      else console.log(`Published: ${payloadStr}`);
     });
   } catch (e) {
     console.error('Failed to fetch/publish devices:', e);
-    const errorResp = { error: 'DB_ERROR', message: e.message || 'Unknown error' };
-    if (correlationId) errorResp.correlationId = correlationId;
-    mqttClient.publish(RES_TOPIC, JSON.stringify(errorResp), { qos: 1 });
+    mqttClient.publish(RES_TOPIC, `ERROR: ${e.message || 'Unknown error'}`, { qos: 1 });
   }
 });
 
