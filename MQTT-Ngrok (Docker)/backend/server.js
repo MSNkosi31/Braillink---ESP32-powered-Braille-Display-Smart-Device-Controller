@@ -21,14 +21,14 @@ const RES_TOPIC = 'deviceList/response';
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
+    console.error('MongoDB connection error:', err);
     process.exit(1);
   });
 
 // --- MQTT ---
 const mqttClient = mqtt.connect(MQTT_URL);
 mqttClient.on('connect', () => {
-  console.log('✅ MQTT connected to', MQTT_URL);
+  console.log('MQTT connected to', MQTT_URL);
   mqttClient.subscribe(REQ_TOPIC, (err) => {
     if (err) console.error('Failed to subscribe:', err);
     else console.log(`Subscribed to "${REQ_TOPIC}"`);
@@ -63,15 +63,16 @@ mqttClient.on('message', async (topic, payload) => {
 
     // Publish as plain text (comma-separated list)
     const payloadStr = roomStrings.join(',');
-    mqttClient.publish(RES_TOPIC, payloadStr, { qos: 1 }, (err) => {
+    mqttClient.publish(RES_TOPIC, payloadStr, { qos: 0 }, (err) => {
       if (err) console.error('Publish error:', err);
       else console.log(`Published: ${payloadStr}`);
     });
   } catch (e) {
     console.error('Failed to fetch/publish devices:', e);
-    mqttClient.publish(RES_TOPIC, `ERROR: ${e.message || 'Unknown error'}`, { qos: 1 });
+    mqttClient.publish(RES_TOPIC, `ERROR: ${e.message || 'Unknown error'}`, { qos: 0 });
   }
 });
+
 
 // --- REST ---
 app.use('/api/devices', deviceRoutes);
@@ -80,5 +81,4 @@ app.get('/', (_req, res) => {
   res.send('Device API & MQTT middleman is running');
 });
 
-app.listen(PORT, () => console.log(`🚀 API on http://localhost:${PORT}`));
-
+app.listen(PORT, () => console.log(`API on http://localhost:${PORT}`));

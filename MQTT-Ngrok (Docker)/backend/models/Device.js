@@ -16,8 +16,12 @@ const DeviceSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  
+  roomName: {
+    type: String,
+    required: true,
+    trim: true
+  },
 },
 { timestamps: true });
 
-module.exports = mongoose.model('Device', DeviceSchema);
+module.exports = mongoose.model('Device', DeviceSchema)
