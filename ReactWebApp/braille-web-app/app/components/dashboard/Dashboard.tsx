@@ -1,9 +1,11 @@
-import React, {useState} from "react";
-import Sidebar, {type TabType} from "../common/Sidebar";
+import React, { useState } from "react";
+import Sidebar, { type TabType } from "../common/Sidebar";
 import DeviceCard from "../common/DeviceCard";
 import SystemLogs from "../common/SystemLogs";
 import BrailleDisplay from "../brailleDisplay/BrailleDisplay";
 import DevicesManagement from "../devices/DevicesManagement";
+import ProfileSettings from "../auth/profile/ProfileSettings";
+import Notifications from "~/routes/notifications";
 
 interface Device {
     id: number;
@@ -23,33 +25,33 @@ interface Log {
 const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [devices, setDevices] = useState<Device[]>([
-        { 
-            id: 1, 
-            name: "Living Room Light", 
-            type: "light", 
-            status: true, 
-            location: "Living Room" 
+        {
+            id: 1,
+            name: "Living Room Light",
+            type: "light",
+            status: true,
+            location: "Living Room"
         },
-        { 
-            id: 2, 
-            name: "Thermostat", 
-            type: "temp", 
-            status: false, 
-            location: "Hallway" 
+        {
+            id: 2,
+            name: "Thermostat",
+            type: "temp",
+            status: false,
+            location: "Hallway"
         },
-        { 
-            id: 3, 
-            name: "Front Door", 
-            type: "door", 
-            status: false, 
-            location: "Entrance" 
+        {
+            id: 3,
+            name: "Front Door",
+            type: "door",
+            status: false,
+            location: "Entrance"
         },
-        { 
-            id: 4, 
-            name: "Voice Assistant", 
-            type: "voice", 
-            status: true, 
-            location: "Living Room" 
+        {
+            id: 4,
+            name: "Voice Assistant",
+            type: "voice",
+            status: true,
+            location: "Living Room"
         }
     ]);
 
@@ -88,7 +90,7 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-            <Sidebar 
+            <Sidebar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
             />
@@ -107,16 +109,16 @@ const Dashboard: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <BrailleDisplay devices={devices}/>
-                            <SystemLogs logs={logs}/>
+                            <BrailleDisplay devices={devices} />
+                            <SystemLogs logs={logs} />
                         </div>
                     </>
                 )}
 
                 {activeTab === "devices" && <DevicesManagement devices={devices} setDevices={setDevices} />}
-                {activeTab === "braille" && <div>Braille Display Settings</div>}
-                {activeTab === "notifications" && <div>Notification Center</div>}
-                {activeTab === "profile" && <div>Profile Settings</div>}
+                {activeTab === "braille" && <BrailleDisplay devices={devices} />}
+                {activeTab === "notifications" && <Notifications />}
+                {activeTab === "profile" && <ProfileSettings />}
             </main>
         </div>
     );

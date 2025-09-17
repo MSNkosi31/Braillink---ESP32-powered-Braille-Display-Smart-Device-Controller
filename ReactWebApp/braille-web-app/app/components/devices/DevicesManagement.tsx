@@ -3,7 +3,7 @@ import { FaPlus, FaTrash } from "react-icons/fa";
 import DeviceCard from "../common/DeviceCard";
 import AddDeviceModal from "./AddDeviceModal";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
-import { useToast } from "~/contexts/ToastContext";
+// import { useToast } from "~/contexts/ToastContext";
 
 interface Device {
     id: number;
@@ -21,7 +21,10 @@ interface DevicesManagementProps {
 const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevices }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
-    const { showToast } = useToast();
+    // const { showToast } = useToast();
+    const showToast = (message: string, type: string) => {
+        console.log(`${type.toUpperCase()}: ${message}`);
+    };
 
     const handleAddDevice = (deviceData: Omit<Device, "id">) => {
         const newDevice: Device = {
