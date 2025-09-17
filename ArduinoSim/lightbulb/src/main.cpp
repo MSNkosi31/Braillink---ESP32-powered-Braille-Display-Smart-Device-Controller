@@ -10,19 +10,42 @@ const int LED1 = 26;
 
 /*=========== MQTT variables ==============
 These variables are responsible for connecting the esp32 to the broker, the topics it subs/pubs to and its name to the rest of the network.*/
-const char* mqtt_server = "2.tcp.eu.ngrok.io";
-const int mqtt_port = 17316;
+const char* mqtt_server = "5.tcp.ngrok.io";
+const int mqtt_port = 27483;
 const char* deviceStatusTopic = "kitchen/Light1_status";
 const char* deviceTopic = "kitchen/Light1";
 const char* deviceName = "kitchen/Light1";
+bool deviceState;
 
 //===============WiFi===============
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 
-/*============MQTT Messaging=============
-This function is called everytime a message is recieved on the topic the device is subscribed to. It then parses the messege, prints in the serial for testing and then runs code to control the esp32 depending on the message. Everything but the code to control the esp32 funcrions is the exact same for all other devices*/ 
+//============MQTT Messaging=============
+
+void deviceControl(String message){
+  if (message.equalsIgnoreCase("ON")) {
+      digitalWrite(LED1, HIGH);
+      deviceState = true;
+      //Serial.println("Light has been turned on");
+    }
+    else if (message.equalsIgnoreCase("OFF")) {
+      digitalWrite(LED1, LOW);
+      deviceState = false;
+      //Serial.println("Light has been turned off");
+    }
+}
+
+void statusCheck(){
+  if(deviceState == true){
+    client.publish(deviceStatusTopic, "ON");
+  }
+  else if(deviceState == false){
+    client.publish(deviceStatusTopic, "OFF");
+  }
+}
+ 
 void callback(char* topic, byte* message, unsigned int length) {
   Serial.print("Message arrived on topic: ");
   Serial.println(topic);
@@ -36,23 +59,20 @@ void callback(char* topic, byte* message, unsigned int length) {
 
 //Logic to control the device depending on the message recieved. Changes per device 
   if (String(topic) == deviceTopic) {
-    if (messageTemp.equalsIgnoreCase("ON")) {
-      digitalWrite(LED1, HIGH);
-      //Serial.println("Light has been turned on");
-    }
-    else if (messageTemp.equalsIgnoreCase("OFF")) {
-      digitalWrite(LED1, LOW);
-      //Serial.println("Light has been turned off");
-    }
+    deviceControl(messageTemp);
+  }
+
+  if (String(topic) == deviceStatusTopic && messageTemp.equalsIgnoreCase("check")) {
+    statusCheck();
   }
 }
 // Code to reconnect the esp32 to the broker, subscribe to all relative topics and publish that it is on and connected, all automatically
 void reconnect() {
   while(!client.connected()) {
     if(client.connect(deviceName)) {
-      //const list = client.subscribe(deviceLIst/repsonse);//listens to this
-      client.subscribe(deviceTopic);//listen to my 
-      client.publish(deviceLIst);
+      client.subscribe(deviceTopic);
+      client.subscribe(deviceStatusTopic);
+      Serial.println("MQTT Connected");
     }else{
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -72,7 +92,9 @@ void setup() {
   delay(2000);
   digitalWrite(LED1, LOW);
 
-  Serial.print("Connecting to WiFi");
+  deviceState = false;
+
+  Serial.print("Connecting to WiFi hi");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
