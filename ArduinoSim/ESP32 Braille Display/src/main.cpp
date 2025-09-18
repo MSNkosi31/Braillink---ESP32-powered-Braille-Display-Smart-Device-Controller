@@ -12,8 +12,18 @@ const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
 // =================== MQTT SERVER ===================
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 const char* mqttServer = "5.tcp.eu.ngrok.io"; //make sure it's the correct server address and that it's not expired.
 const int mqttPort = 12163; //make sure it's the correct port address and that it's not expired.
+=======
+const char* mqttServer = "5.tcp.ngrok.io"; //make sure it's the correct server address and that it's not expired.
+const int mqttPort = 27483; //make sure it's the correct port address and that it's not expired.
+>>>>>>> Stashed changes
+=======
+const char* mqttServer = "5.tcp.ngrok.io"; //make sure it's the correct server address and that it's not expired.
+const int mqttPort = 27483; //make sure it's the correct port address and that it's not expired.
+>>>>>>> Stashed changes
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -92,29 +102,38 @@ std::map<char, String> letters = {
   // =================== GLOBAL VARIABLES ===================
   
   String binLetter [13] = {"000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000"};//Sets all leds off
-  // int menuOption = 0;
-  int currentMainOption = 0;
-  int currentSubOption = 0;
-  bool welcomeShown = false;
-  bool inSubMenu = false;
-  String mainMenuDynamic[10]; // max 10 items
-  int mainMenuCount = 0;
-  const int MAX_ROOMS = 10;
-  String newSubMenu[MAX_ROOMS];  // MAX amount of devices
-  int subMenuCount = 0;   // how many devices are in newSubMenu
-  bool wakeup = false;
-  bool AllWake = false;
-  
-  int lastClk = HIGH;
-  unsigned long lastActiveTime = 0;
-  const unsigned long activeDuration = 10000; // 60 seconds and yes
-  bool shownGoodbyeMsg = false;
-  String rawDeviceList = "";   // raw payload from MQTT
-  bool menuReady = false;
+  int currentMainOption = 0;     // Currently selected room index
+  int currentSubOption = 0;      // Currently selected device index
+  bool welcomeShown = false;     // Show welcome message once
+  bool inSubMenu = false;        // Tracks if we’re in device submenu
+  String mainMenuDynamic[10];    // List of rooms (max 10)
+  int mainMenuCount = 0;         // Number of rooms
+  String newSubMenu[10];         // List of devices (max 10)
+  int subMenuCount = 0;          // Number of devices
+  String rawDeviceList = "";     // Stores MQTT payload raw
+  bool menuReady = false;        // True when menu data received
 
-  // MQTT reconnect timing (non-blocking-ish)
+  // Encoder states
+  int lastClk = HIGH;
+  unsigned long lastEncoderTime = 0;
+  const unsigned long encoderDebounce = 120; // debounce in ms
+
+  // Idle timeout
+  unsigned long lastActiveTime = 0;
+  const unsigned long activeDuration = 10000; // 10s before idle
+
+  // MQTT reconnect timing
   unsigned long lastMqttAttempt = 0;
-  const unsigned long mqttRetryInterval = 5000; // ms
+  const unsigned long mqttRetryInterval = 5000;
+
+  // Button states
+  bool lastEnterState = LOW;
+  bool lastBackState  = LOW;
+
+  // Buzzer
+  bool buzzing = false;
+  unsigned long buzzEndTime = 0;
+
 
 
 // =================== FUNCTION DECLARATIONS ===================
@@ -130,7 +149,7 @@ void displayBrailleFormat(String cells[], String menuOption); // Displays Braill
 void clearBin(); // Clears the binLetter array (all LEDs off)
 void showWelcomeMessage(); // Displays a welcome message on matrix and LCD
 void playBuzz(int freq = 1000, int duration = 200); // Plays a buzzer tone with specified frequency and duration
-int countCharOccurrences(const String& inputString, char targetChar); // Counts how many times a character appears in a string
+
 
 
 void setup() {
@@ -181,131 +200,83 @@ void loop() {
     return;
   }
 
-  // Make sure mainMenuCount sane
-  if (mainMenuCount <= 0) return;
-
-  // Show menu first time
-  static bool menuDisplayed = false;
-  if (!menuDisplayed) {
-    currentMainOption = 0;
-    updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
-    menuDisplayed = true;
-  }
-
-  // Rotary/encoder handling
-  bool nextTurned = false, prevTurned = false;
+  // --- ROTARY ENCODER HANDLING ---
   int newClk = digitalRead(ENCODER_CLK);
-  if (newClk != lastClk) {
-    lastClk = newClk;
-    int dtValue = digitalRead(ENCODER_DT);
-    // Simple quadrature handling: detect direction on falling edge of CLK
-    if (newClk == LOW) {
-      if (dtValue == HIGH) nextTurned = true;
-      else prevTurned = true;
-    }
-  }
+  int dtVal   = digitalRead(ENCODER_DT);
+  unsigned long now = millis();
 
-  bool enterPressed = digitalRead(ENTER_PIN) == HIGH;
-  bool backPressed  = digitalRead(BACK_PIN) == HIGH;
-  bool motionDetected = digitalRead(PROX_PIN) == HIGH;
+  if (newClk != lastClk && newClk == LOW && now - lastEncoderTime > encoderDebounce) {
+    lastEncoderTime = now;
 
-  bool activityAll = motionDetected || nextTurned || prevTurned || enterPressed || backPressed;
-  bool isActive = (millis() - lastActiveTime) < activeDuration;
-  if (!isActive && activityAll) {
-    // wake up
-    showWelcome:
-    ;
-    if (!welcomeShown) {
-      showWelcomeMessage();
-      welcomeShown = true;
-      delay(300);
-    }
-    lastActiveTime = millis();
-  }
-
-  if (isActive && activityAll) lastActiveTime = millis();
-
-  // navigation + selection
-  if (nextTurned) {
-    playBuzz(831, 80);
-    if (inSubMenu) {
-      currentSubOption++;
-      if (currentSubOption >= subMenuCount) currentSubOption = 0;
-      updateMenu(currentSubOption, newSubMenu, subMenuCount);
-    } else {
-      currentMainOption++;
-      if (currentMainOption >= mainMenuCount) currentMainOption = 0;
-      updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
-    }
-  }
-
-  if (prevTurned) {
-    playBuzz(659, 80);
-    if (inSubMenu) {
-      currentSubOption--;
-      if (currentSubOption < 0) currentSubOption = subMenuCount - 1;
-      updateMenu(currentSubOption, newSubMenu, subMenuCount);
-    } else {
-      currentMainOption--;
-      if (currentMainOption < 0) currentMainOption = mainMenuCount - 1;
-      updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
-    }
-  }
-
-  if (enterPressed) {
-    // Debounce-ish: simple delay to not re-trigger too fast
-    delay(120);
     if (!inSubMenu) {
-      // enter room -> open devices list
-      playBuzz(523, 100);
+      // Move through rooms
+      if (dtVal != newClk) currentMainOption++;
+      else currentMainOption--;
+      if (currentMainOption >= mainMenuCount) currentMainOption = 0;
+      if (currentMainOption < 0) currentMainOption = mainMenuCount - 1;
+      Serial.println("Main menu moved to: " + mainMenuDynamic[currentMainOption]);
+      updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
+      playBuzz(831, 80);
+    } else {
+      // Move through devices
+      if (dtVal != newClk) currentSubOption++;
+      else currentSubOption--;
+      if (currentSubOption >= subMenuCount) currentSubOption = 0;
+      if (currentSubOption < 0) currentSubOption = subMenuCount - 1;
+      Serial.println("Sub menu moved to: " + newSubMenu[currentSubOption]);
+      updateMenu(currentSubOption, newSubMenu, subMenuCount);
+      playBuzz(659, 80);
+    }
+  }
+  lastClk = newClk;
+
+  // --- BUTTONS HANDLING ---
+  bool enterState = digitalRead(ENTER_PIN);
+  bool backState  = digitalRead(BACK_PIN);
+
+  // Enter button pressed
+  if (enterState == HIGH && lastEnterState == LOW) {
+    if (!inSubMenu) {
+      // Enter devices list of a room
       inSubMenu = true;
       currentSubOption = 0;
-      getDevices(currentMainOption); // populate newSubMenu / subMenuCount
-      if (subMenuCount == 0) {
-        // nothing inside room - fallback (stay in main)
-        inSubMenu = false;
-        playBuzz(300, 120);
-      } else {
-        updateMenu(currentSubOption, newSubMenu, subMenuCount);
-      }
+      getDevices(currentMainOption);
+      if (subMenuCount > 0) updateMenu(currentSubOption, newSubMenu, subMenuCount);
+      playBuzz(523, 100);
+      Serial.println("Entered room: " + mainMenuDynamic[currentMainOption]);
     } else {
-      // enter device -> DO ACTION: print + publish control message
-      String selectedRoom = mainMenuDynamic[currentMainOption];
-      // room stored as "room-dev1;dev2" so extract room name before '-'
-      int dash = selectedRoom.indexOf('-');
-      String roomName = (dash == -1) ? selectedRoom : selectedRoom.substring(0, dash);
-      String deviceName = (currentSubOption >= 0 && currentSubOption < subMenuCount) ? newSubMenu[currentSubOption] : String("");
-
-      Serial.println("Selected device: " + deviceName + " in room: " + roomName);
-
-      // Build payload example: {"room":"kitchen","device":"Oven","action":"toggle"}
-      // For simplicity we send a simple CSV style payload; change to JSON if backend expects JSON.
-      String payload = roomName + "," + deviceName + ",toggle";
-      if (client.connected()) {
-        client.publish(CONTROL_TOPIC, payload.c_str());
-        playBuzz(880, 120);
-      } else {
-        Serial.println("MQTT not connected - cannot publish");
-        playBuzz(250, 140);
-      }
+      // Action on device
+      String roomName = mainMenuDynamic[currentMainOption];
+      int dash = roomName.indexOf('-');
+      if (dash != -1) roomName = roomName.substring(0, dash);
+      String deviceName = newSubMenu[currentSubOption];
+      Serial.println("Device action: " + deviceName + " in " + roomName);
+      if (client.connected()) client.publish(CONTROL_TOPIC, (roomName + "," + deviceName + ",toggle").c_str());
+      playBuzz(300, 120);
     }
   }
 
-  if (backPressed) {
-    // go back from sub-menu to main menu
+  // Back button pressed
+  if (backState == HIGH && lastBackState == LOW) {
     if (inSubMenu) {
-      playBuzz(523, 80);
+      // Return to rooms menu
       inSubMenu = false;
       currentSubOption = 0;
       updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
-      delay(120); // simple debounce
-    } else {
-      // optionally: do nothing or implement exiting UI
+      playBuzz(250, 140);
+      Serial.println("Returned to main menu: " + mainMenuDynamic[currentMainOption]);
     }
   }
 
-  // small loop delay
-  delay(10);
+  // Save button states
+  lastEnterState = enterState;
+  lastBackState = backState;
+
+  // --- NON-BLOCKING BUZZER CONTROL ---
+  if (buzzing && millis() >= buzzEndTime) {
+    noTone(BUZZ_PIN);
+    buzzing = false;
+  }
 }
 
 
@@ -337,10 +308,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     int start = 0;
     while (start < rawDeviceList.length() && mainMenuCount < 10) {
       int comma = rawDeviceList.indexOf(',', start);
-      String item;
-      if (comma == -1) item = rawDeviceList.substring(start);
-      else item = rawDeviceList.substring(start, comma);
-
+      String item = (comma == -1) ? rawDeviceList.substring(start) : rawDeviceList.substring(start, comma);
       item.trim();
       if (item.length() > 0) {
         mainMenuDynamic[mainMenuCount++] = item;
@@ -350,11 +318,22 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       start = comma + 1;
     }
 
-    // reset indexes and show first menu item
-    currentMainOption = 0;
-    inSubMenu = false;
     menuReady = true;
-    updateMenu(0, mainMenuDynamic, mainMenuCount);
+    
+    if (!inSubMenu) {
+      // --- Still in main menu: refresh rooms ---
+      updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
+      Serial.println("Main menu refreshed. Rooms count: " + String(mainMenuCount));
+    } else {
+      // --- In a submenu: refresh devices for the same room ---
+      getDevices(currentMainOption);
+      if (subMenuCount > 0) {
+        updateMenu(currentSubOption, newSubMenu, subMenuCount);
+        Serial.println("Submenu refreshed for room: " + mainMenuDynamic[currentMainOption]);
+      } else {
+        Serial.println("No devices found for room: " + mainMenuDynamic[currentMainOption]);
+      }
+    }
   }
 }
 
@@ -427,16 +406,6 @@ void getDevices(int idxMain) {
 // =================== UPDATE MENU ===================
 void updateMenu(int idx, String selectedMenu[], int menuCount) {
   if (menuCount <= 0) return;
-  
-  // wrap index
-  if (idx >= menuCount) idx = 0;
-  if (idx < 0) idx = menuCount - 1;
-
-  if (inSubMenu) {
-    currentSubOption = idx;
-  } else {
-    currentMainOption = idx;
-  }
 
   matrix.clear();
   clearBin();
@@ -450,17 +419,11 @@ void updateMenu(int idx, String selectedMenu[], int menuCount) {
   
   convertWord(selectedMenu[idx], binLetter);
 
-  String lcdDisplayWord = selectedMenu[idx];
-  int dashPos = lcdDisplayWord.indexOf('-');
-  if (dashPos != -1) {
-    lcdDisplayWord = lcdDisplayWord.substring(0, dashPos);  // show only the room
-  }
-
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Selected:");
   lcd.setCursor(0, 1);
-  lcd.print(lcdDisplayWord);
+  lcd.print(displayText);
 }
 
 
