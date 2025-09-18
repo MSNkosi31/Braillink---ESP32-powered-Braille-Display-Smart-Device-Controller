@@ -12,18 +12,8 @@ const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
 // =================== MQTT SERVER ===================
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-const char* mqttServer = "5.tcp.eu.ngrok.io"; //make sure it's the correct server address and that it's not expired.
-const int mqttPort = 12163; //make sure it's the correct port address and that it's not expired.
-=======
 const char* mqttServer = "5.tcp.ngrok.io"; //make sure it's the correct server address and that it's not expired.
 const int mqttPort = 27483; //make sure it's the correct port address and that it's not expired.
->>>>>>> Stashed changes
-=======
-const char* mqttServer = "5.tcp.ngrok.io"; //make sure it's the correct server address and that it's not expired.
-const int mqttPort = 27483; //make sure it's the correct port address and that it's not expired.
->>>>>>> Stashed changes
 
 WiFiClient espClient;
 PubSubClient client(espClient);
