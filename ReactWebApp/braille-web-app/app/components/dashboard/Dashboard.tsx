@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar, { type TabType } from "../common/Sidebar";
 import DeviceCard from "../common/DeviceCard";
 import SystemLogs from "../common/SystemLogs";
@@ -22,69 +22,76 @@ interface Log {
     type: "success" | "error" | "warning" | "info";
 }
 
+const API_BASE = "https://braillink-api.ngrok.app";
+
 const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-    const [devices, setDevices] = useState<Device[]>([
-        {
-            id: 1,
-            name: "Living Room Light",
-            type: "light",
-            status: true,
-            location: "Living Room"
-        },
-        {
-            id: 2,
-            name: "Thermostat",
-            type: "temp",
-            status: false,
-            location: "Hallway"
-        },
-        {
-            id: 3,
-            name: "Front Door",
-            type: "door",
-            status: false,
-            location: "Entrance"
-        },
-        {
-            id: 4,
-            name: "Voice Assistant",
-            type: "voice",
-            status: true,
-            location: "Living Room"
+    const [devices, setDevices] = useState<Device[]>([]);
+    const [logs, setLogs] = useState<Log[]>([]);
+
+    const fetchDevices = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/devices`);
+            if (res.ok) {
+                const data = await res.json();
+                setDevices(data);
+            } else {
+                throw new Error("Failed to fetch devices");
+            }
+        } catch (e) {
+            console.error(e);
+            // Optionally add a log or toast here
         }
-    ]);
+    };
 
-    const [logs, setLogs] = useState<Log[]>([
-        {
-            id: 1,
-            message: "System initialized successfully",
-            timestamp: new Date(),
-            type: "success"
-        },
-        {
-            id: 2,
-            message: "Living Room Light turned ON",
-            timestamp: new Date(),
-            type: "info"
-        }
-    ]);
-
-    const toggleDevice = (deviceId: number) => {
-        setDevices(devices.map(device => device.id === deviceId ? {
-            ...device,
-            status: !device.status
-        } : device));
-
-        const device = devices.find(d => d.id === deviceId);
-        if (device) {
-            const newLog: Log = {
-                id: logs.length + 1,
-                message: `${device.name} turned ${device.status ? "OFF" : "ON"}`,
+    // Assuming no API for logs, initialize with some or keep empty. If there's a logs endpoint, add fetchLogs similar to fetchDevices.
+    const initLogs = () => {
+        setLogs([
+            {
+                id: 1,
+                message: "System initialized successfully",
                 timestamp: new Date(),
-                type: "info"
-            };
-            setLogs([newLog, ...logs]);
+                type: "success"
+            }
+        ]);
+    };
+
+    useEffect(() => {
+        fetchDevices();
+        initLogs(); // Or fetch if endpoint exists
+    }, []);
+
+    const toggleDevice = async (deviceId: number) => {
+        const targetDevice = devices.find(d => d.id === deviceId);
+        if (!targetDevice) return;
+
+        const newStatus = !targetDevice.status;
+
+        try {
+            const res = await fetch(`${API_BASE}/devices/${deviceId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            if (res.ok) {
+                setDevices(devices.map(device => device.id === deviceId ? {
+                    ...device,
+                    status: newStatus
+                } : device));
+
+                const newLog: Log = {
+                    id: logs.length + 1,
+                    message: `${targetDevice.name} turned ${newStatus ? "ON" : "OFF"}`,
+                    timestamp: new Date(),
+                    type: "info"
+                };
+                setLogs([newLog, ...logs]);
+            } else {
+                throw new Error("Failed to update device status");
+            }
+        } catch (e) {
+            console.error(e);
+            // Optionally add error log or toast
         }
     };
 

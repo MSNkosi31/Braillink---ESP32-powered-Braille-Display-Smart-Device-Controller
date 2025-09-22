@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import DeviceCard from "../common/DeviceCard";
 import AddDeviceModal from "./AddDeviceModal";
@@ -18,6 +18,8 @@ interface DevicesManagementProps {
     setDevices: (devices: Device[]) => void;
 }
 
+const API_BASE = "https://braillink-api.ngrok.app";
+
 const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevices }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
@@ -26,21 +28,62 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevic
         console.log(`${type.toUpperCase()}: ${message}`);
     };
 
-    const handleAddDevice = (deviceData: Omit<Device, "id">) => {
-        const newDevice: Device = {
-            ...deviceData,
-            id: devices.length > 0 ? Math.max(...devices.map(d => d.id)) + 1 : 1
-        };
-        setDevices([...devices, newDevice]);
-        setShowAddModal(false);
-        showToast(`Device "${newDevice.name}" added successfully`, "success");
+    const fetchDevices = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/devices`);
+            if (res.ok) {
+                const data = await res.json();
+                setDevices(data);
+            } else {
+                throw new Error("Failed to fetch devices");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error fetching devices", "error");
+        }
     };
 
-    const handleDeleteDevice = () => {
+    useEffect(() => {
+        fetchDevices();
+    }, []);
+
+    const handleAddDevice = async (deviceData: Omit<Device, "id">) => {
+        try {
+            const res = await fetch(`${API_BASE}/devices`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(deviceData),
+            });
+            if (res.ok) {
+                await fetchDevices(); // Refetch to sync with server
+                setShowAddModal(false);
+                showToast(`Device "${deviceData.name}" added successfully`, "success");
+            } else {
+                throw new Error("Failed to add device");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error adding device", "error");
+        }
+    };
+
+    const handleDeleteDevice = async () => {
         if (!deviceToDelete) return;
-        setDevices(devices.filter(device => device.id !== deviceToDelete.id));
-        showToast(`Device "${deviceToDelete.name}" deleted`, "error");
-        setDeviceToDelete(null);
+        try {
+            const res = await fetch(`${API_BASE}/devices/${deviceToDelete.id}`, {
+                method: "DELETE",
+            });
+            if (res.ok) {
+                await fetchDevices(); // Refetch to sync with server
+                showToast(`Device "${deviceToDelete.name}" deleted`, "error");
+                setDeviceToDelete(null);
+            } else {
+                throw new Error("Failed to delete device");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error deleting device", "error");
+        }
     };
 
     return (
@@ -61,10 +104,27 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevic
                     <div key={device.id} className="relative group">
                         <DeviceCard
                             device={device}
-                            onToggle={(id) => {
-                                setDevices(devices.map(d => 
-                                    d.id === id ? {...d, status: !d.status} : d
-                                ));
+                            onToggle={async (id) => {
+                                const targetDevice = devices.find(d => d.id === id);
+                                if (!targetDevice) return;
+                                const newStatus = !targetDevice.status;
+                                try {
+                                    const res = await fetch(`${API_BASE}/devices/${id}`, {
+                                        method: "PUT",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ status: newStatus }),
+                                    });
+                                    if (res.ok) {
+                                        setDevices(devices.map(d => 
+                                            d.id === id ? { ...d, status: newStatus } : d
+                                        ));
+                                    } else {
+                                        throw new Error("Failed to update status");
+                                    }
+                                } catch (e) {
+                                    console.error(e);
+                                    showToast("Error updating device status", "error");
+                                }
                             }}
                         />
                         <button
