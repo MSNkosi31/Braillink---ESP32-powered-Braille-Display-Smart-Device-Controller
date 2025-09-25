@@ -22,19 +22,56 @@ interface Log {
     type: "success" | "error" | "warning" | "info";
 }
 
-const API_BASE = "https://braillink-api.ngrok.app";
+//New interfaces for the actual API response
+interface ApiDevice {
+    _id: string;
+    deviceName: string;
+    deviceTopic: string;
+    deviceStatusTopic: string;
+}
+
+interface Room {
+    roomName: string;
+    devices: ApiDevice[];
+}
+
+interface ApiResponse {
+    rooms: Room[];
+}
+
+const API_BASE = "https://braillink-api.ngrok.app/api";
 
 const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [devices, setDevices] = useState<Device[]>([]);
     const [logs, setLogs] = useState<Log[]>([]);
 
+    //Function to transform API response to expected Device format
+    const transformApiDataToDevices = (apiData: ApiResponse): Device[] => {
+        const devices: Device[] = [];
+
+        apiData.rooms.forEach(room => {
+            room.devices.forEach(apiDevice => {
+                devices.push({
+                    id: parseInt(apiDevice._id) || Date.now() + Math.random(), // Use timestamp + random as fallback
+                    name: apiDevice.deviceName,
+                    type: "light", // need to determine this from your data
+                    status: false, // need to fetch actual status
+                    location: room.roomName
+                });
+            });
+        });
+
+        return devices;
+    };
+
     const fetchDevices = async () => {
         try {
             const res = await fetch(`${API_BASE}/devices`);
             if (res.ok) {
-                const data = await res.json();
-                setDevices(data);
+                const apiData: ApiResponse = await res.json();
+                const transformedDevices = transformApiDataToDevices(apiData);
+                setDevices(transformedDevices);
             } else {
                 throw new Error("Failed to fetch devices");
             }

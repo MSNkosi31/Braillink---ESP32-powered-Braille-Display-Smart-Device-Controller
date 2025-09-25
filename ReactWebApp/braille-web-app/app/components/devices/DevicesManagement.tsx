@@ -18,9 +18,28 @@ interface DevicesManagementProps {
     setDevices: (devices: Device[]) => void;
 }
 
-const API_BASE = "https://braillink-api.ngrok.app";
+const API_BASE = "https://braillink-api.ngrok.app/api";
 
-const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevices }) => {
+interface ApiDevice {
+    _id: string;
+    deviceName: string;
+    deviceTopic: string;
+    deviceStatusTopic: string;
+}
+
+interface Room {
+    roomName: string;
+    devices: ApiDevice[];
+}
+
+interface ApiResponse {
+    rooms: Room[];
+}
+
+const DevicesManagement: React.FC<DevicesManagementProps> = ({
+    devices = [],
+    setDevices
+}) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
     // const { showToast } = useToast();
@@ -28,12 +47,32 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevic
         console.log(`${type.toUpperCase()}: ${message}`);
     };
 
+    // Function to transform API response to expected Device format
+    const transformApiDataToDevices = (apiData: ApiResponse): Device[] => {
+        const devices: Device[] = [];
+
+        apiData.rooms.forEach(room => {
+            room.devices.forEach(apiDevice => {
+                devices.push({
+                    id: parseInt(apiDevice._id) || 0, //Use a fallback if _id can't be parsed
+                    name: apiDevice.deviceName,
+                    type: "light", //will need to determine this from our data
+                    status: false, //will need to fetch actual status
+                    location: room.roomName
+                });
+            });
+        });
+
+        return devices;
+    };
+
     const fetchDevices = async () => {
         try {
             const res = await fetch(`${API_BASE}/devices`);
             if (res.ok) {
-                const data = await res.json();
-                setDevices(data);
+                const apiData: ApiResponse = await res.json();
+                const transformedDevices = transformApiDataToDevices(apiData);
+                setDevices(transformedDevices);
             } else {
                 throw new Error("Failed to fetch devices");
             }
@@ -49,10 +88,17 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevic
 
     const handleAddDevice = async (deviceData: Omit<Device, "id">) => {
         try {
+            //need to adjust this to match our API's expected format
+            const apiDeviceData = {
+                deviceName: deviceData.name,
+                deviceTopic: `${deviceData.location}/${deviceData.name}`,
+                deviceStatusTopic: `${deviceData.location}/${deviceData.name}_status`,
+            };
+
             const res = await fetch(`${API_BASE}/devices`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(deviceData),
+                body: JSON.stringify(apiDeviceData),
             });
             if (res.ok) {
                 await fetchDevices(); // Refetch to sync with server
@@ -115,7 +161,7 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevic
                                         body: JSON.stringify({ status: newStatus }),
                                     });
                                     if (res.ok) {
-                                        setDevices(devices.map(d => 
+                                        setDevices(devices.map(d =>
                                             d.id === id ? { ...d, status: newStatus } : d
                                         ));
                                     } else {
