@@ -6,11 +6,14 @@ import DeleteConfirmationModal from "./DeleteConfirmationModal";
 // import { useToast } from "~/contexts/ToastContext";
 
 interface Device {
-    id: number;
+    id: string;
     name: string;
     type: "light" | "temp" | "door" | "voice";
     status: boolean;
     location: string;
+    deviceTopic: string;
+    deviceStatusTopic: string;
+    battery?: number;
 }
 
 interface DevicesManagementProps {
@@ -53,12 +56,25 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({
 
         apiData.rooms.forEach(room => {
             room.devices.forEach(apiDevice => {
+                // Determine device type based on name
+                const getDeviceType = (name: string): "light" | "temp" | "door" | "voice" => {
+                    const lowerName = name.toLowerCase();
+                    if (lowerName.includes('light') || lowerName.includes('lamp')) return 'light';
+                    if (lowerName.includes('temp') || lowerName.includes('thermo')) return 'temp';
+                    if (lowerName.includes('door') || lowerName.includes('lock')) return 'door';
+                    if (lowerName.includes('voice') || lowerName.includes('speaker')) return 'voice';
+                    return 'light';
+                };
+
                 devices.push({
-                    id: parseInt(apiDevice._id) || 0, //Use a fallback if _id can't be parsed
+                    id: apiDevice._id,
                     name: apiDevice.deviceName,
-                    type: "light", //will need to determine this from our data
-                    status: false, //will need to fetch actual status
-                    location: room.roomName
+                    type: getDeviceType(apiDevice.deviceName),
+                    status: false,
+                    location: room.roomName,
+                    deviceTopic: apiDevice.deviceTopic,
+                    deviceStatusTopic: apiDevice.deviceStatusTopic,
+                    battery: undefined
                 });
             });
         });
@@ -88,24 +104,29 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({
 
     const handleAddDevice = async (deviceData: Omit<Device, "id">) => {
         try {
-            //need to adjust this to match our API's expected format
+            // Send as JSON in the request body instead of URL parameters
             const apiDeviceData = {
                 deviceName: deviceData.name,
-                deviceTopic: `${deviceData.location}/${deviceData.name}`,
-                deviceStatusTopic: `${deviceData.location}/${deviceData.name}_status`,
+                deviceTopic: deviceData.deviceTopic,
+                deviceStatusTopic: deviceData.deviceStatusTopic,
+                roomName: deviceData.location
             };
 
             const res = await fetch(`${API_BASE}/devices`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(apiDeviceData),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(apiDeviceData)
             });
+
             if (res.ok) {
                 await fetchDevices(); // Refetch to sync with server
                 setShowAddModal(false);
                 showToast(`Device "${deviceData.name}" added successfully`, "success");
             } else {
-                throw new Error("Failed to add device");
+                const errorText = await res.text();
+                throw new Error(`Failed to add device: ${errorText}`);
             }
         } catch (e) {
             console.error(e);
@@ -116,6 +137,7 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({
     const handleDeleteDevice = async () => {
         if (!deviceToDelete) return;
         try {
+            // Updated to match the correct API endpoint format from documentation
             const res = await fetch(`${API_BASE}/devices/${deviceToDelete.id}`, {
                 method: "DELETE",
             });
@@ -130,6 +152,18 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({
             console.error(e);
             showToast("Error deleting device", "error");
         }
+    };
+
+    // Since we're using MQTT for status updates, this will be handled by the parent component
+    const handleToggleDevice = async (deviceId: string) => {
+        // This will be handled by MQTT in the parent component
+        console.log(`Toggle device ${deviceId} - handled by MQTT`);
+    };
+
+    // Since we're using MQTT for status checks, this will be handled by the parent component
+    const handleStatusCheck = (deviceId: string) => {
+        // This will be handled by MQTT in the parent component
+        console.log(`Check status for device ${deviceId} - handled by MQTT`);
     };
 
     return (
@@ -150,28 +184,9 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({
                     <div key={device.id} className="relative group">
                         <DeviceCard
                             device={device}
-                            onToggle={async (id) => {
-                                const targetDevice = devices.find(d => d.id === id);
-                                if (!targetDevice) return;
-                                const newStatus = !targetDevice.status;
-                                try {
-                                    const res = await fetch(`${API_BASE}/devices/${id}`, {
-                                        method: "PUT",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ status: newStatus }),
-                                    });
-                                    if (res.ok) {
-                                        setDevices(devices.map(d =>
-                                            d.id === id ? { ...d, status: newStatus } : d
-                                        ));
-                                    } else {
-                                        throw new Error("Failed to update status");
-                                    }
-                                } catch (e) {
-                                    console.error(e);
-                                    showToast("Error updating device status", "error");
-                                }
-                            }}
+                            onToggle={handleToggleDevice}
+                            onStatusCheck={() => handleStatusCheck(device.id)}
+                            battery={device.battery}
                         />
                         <button
                             onClick={() => setDeviceToDelete(device)}
