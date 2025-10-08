@@ -6,7 +6,6 @@ const cors = require('cors');
 
 const Device = require('./models/Device');
 const deviceRoutes = require('./routes/devices');
-const routineRoutes = require('./routes/routines');
 
 const app = express();
 app.use(cors());
@@ -18,6 +17,7 @@ const MQTT_URL = 'mqtt://mqtt:1883';
 const REQ_TOPIC = 'deviceList';
 const RES_TOPIC = 'deviceList/response';
 
+// --- Mongo ---
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => {
@@ -25,6 +25,7 @@ mongoose.connect(MONGO_URI)
     process.exit(1);
   });
 
+// --- MQTT ---
 const mqttClient = mqtt.connect(MQTT_URL);
 mqttClient.on('connect', () => {
   console.log('MQTT connected to', MQTT_URL);
@@ -38,6 +39,7 @@ mqttClient.on('error', (err) => {
   console.error('MQTT error:', err);
 });
 
+// --- Handle incoming deviceList requests ---
 mqttClient.on('message', async (topic, payload) => {
   if (topic !== REQ_TOPIC) return;
 
@@ -54,6 +56,7 @@ mqttClient.on('message', async (topic, payload) => {
       roomMap[room].push(d.deviceName);
     });
 
+    // Convert to plaintext array
     const roomStrings = Object.keys(roomMap).map(roomName => {
       return `${roomName}-${roomMap[roomName].join(';')}`;
     });
@@ -71,8 +74,8 @@ mqttClient.on('message', async (topic, payload) => {
 });
 
 
+// --- REST ---
 app.use('/api/devices', deviceRoutes);
-app.use('/api/routines', routineRoutes);
 
 app.get('/', (_req, res) => {
   res.send('Device API & MQTT middleman is running');

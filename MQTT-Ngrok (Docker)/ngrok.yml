@@ -4,7 +4,7 @@ agent:
 
 endpoints:
   - name: mqtt-tcp
-    url: tcp://5.tcp.ngrok.io:27483 
+    url: tcp://5.tcp.ngrok.io:27483   # must match your reserved TCP address
     upstream:
       url: mqtt:1883
       protocol: tcp
