@@ -3,3 +3,7 @@
 /ArduinoSim/ESP32 Braille Display/.pio
 /MQTT-Ngrok (Docker)/mongo-data
 MQTT-Ngrok (Docker)/mongo-data/mongod.lock
+/ReactWebApp/braille-web-app/node_modules
+/ReactWebApp/mqtt-websocket-proxy/node_modules
+/ReactWebApp/braille-web-app/build
+/ReactWebApp/braille-web-app/.react-router

@@ -37,6 +37,7 @@ services:
     volumes:
       - ./mongo-data:/data/db
     restart: unless-stopped
+    stop_grace_period: 30s
     networks:
       - app-network
 
