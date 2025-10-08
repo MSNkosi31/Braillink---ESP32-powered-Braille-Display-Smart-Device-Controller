@@ -6,6 +6,7 @@ const cors = require('cors');
 
 const Device = require('./models/Device');
 const deviceRoutes = require('./routes/devices');
+const routineRoutes = require('./routes/routines');
 
 const app = express();
 app.use(cors());
@@ -76,9 +77,10 @@ mqttClient.on('message', async (topic, payload) => {
 
 // --- REST ---
 app.use('/api/devices', deviceRoutes);
+app.use('/api/routines', routineRoutes);
 
 app.get('/', (_req, res) => {
   res.send('Device API & MQTT middleman is running');
-});
+})
 
 app.listen(PORT, () => console.log(`API on http://localhost:${PORT}`));

@@ -15,7 +15,7 @@ services:
 
   ngrok:
     image: ngrok/ngrok:latest
-    container_name: mqtt-ngrok
+    container_name: ngrok(tunnels)
     command: start --all --config /etc/ngrok.yml
     ports:
       - "4040:4040"
@@ -50,6 +50,18 @@ services:
       - "5000:5000"
     depends_on:
       - mongo
+      - mqtt
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  website:
+    build: ./braille-web-app
+    container_name: admin-site
+    ports:
+      - "6000:6000"
+    depends_on:
+      - devices-api
       - mqtt
     restart: unless-stopped
     networks:

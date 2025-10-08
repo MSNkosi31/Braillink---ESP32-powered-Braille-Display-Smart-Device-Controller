@@ -13,3 +13,8 @@ endpoints:
     url: braillink-api.ngrok.app
     upstream:
       url: devices-api:5000
+
+  - name: website
+    url: braillink-site.ngrok.app
+    upstream:
+      url: admin-site:6000
