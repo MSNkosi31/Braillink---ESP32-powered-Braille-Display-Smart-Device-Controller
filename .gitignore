@@ -8,3 +8,4 @@ MQTT-Ngrok (Docker)/mongo-data/mongod.lock
 /ReactWebApp/braille-web-app/build
 /ReactWebApp/braille-web-app/.react-router
 /MQTT-Ngrok (Docker)/backend/node_modules
+/ArduinoSim/ESP32 Braille Display/.pio/build
