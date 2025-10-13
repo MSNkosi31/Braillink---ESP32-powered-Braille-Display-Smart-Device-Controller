@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Routine = require('../models/Routine');
 const mqtt = require('mqtt');
+const { executeRoutine } = require('../services/routineExecutor');
+const scheduler = require('../services/scheduler');
 
 const MQTT_URL = process.env.MQTT_URL || 'mqtt://mqtt:1883';
 const mqttClient = mqtt.connect(MQTT_URL);
@@ -72,22 +74,17 @@ router.put('/:id', async (req, res) => {
 
 router.post('/execute/:id', async (req, res) => {
   try {
-    const routine = await Routine.findById(req.params.id).populate('actions.deviceId');
-    if (!routine) return res.status(404).json({ error: 'Routine not found' });
+    const result = await executeRoutine(req.params.id);
 
-    for (const action of routine.actions) {
-      const device = action.deviceId;
-      if (!device) continue;
+    //update lastExecuted timestamp
+    await Routine.findByIdAndUpdate(req.params.id, {
+      lastExecuted: new Date()
+    });
 
-      const topic = `${device.roomName}/${device.deviceName}`;
-      const message = action.action;
-
-      mqttClient.publish(topic, message, { qos: 0 }, (err) => {
-        if (err) console.error(`MQTT publish error to ${topic}:`, err);
-      });
-    }
-
-    res.json({ message: `Routine "${routine.name}" executed`, actions: routine.actions });
+    res.json({
+      message: `Routine "${result.routineName}" executed`,
+      execution: result
+    });
   } catch (err) {
     console.error('Error executing routine:', err);
     res.status(500).json({ error: 'Server error' });
@@ -98,10 +95,79 @@ router.delete('/:id', async (req, res) => {
   try {
     const deleted = await Routine.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: 'Routine not found' });
+
+    //unschedule if it was scheduled
+    scheduler.unscheduleRoutine(req.params.id);
+
     res.json({ message: 'Routine deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+//endpoint to toggle scheduling for a routine
+router.patch('/:id/schedule', async (req, res) => {
+  try {
+    const {scheduled, cronExpression, time, daysOfWeek, enabled} = req.body;
+
+    const updateFields = {};
+
+    if (typeof scheduled === 'boolean') {
+      updateFields.scheduled = scheduled;
+    }
+
+    if (cronExpression !== undefined) {
+      updateFields['schedule.cronExpression'] = cronExpression;
+    }
+
+    if (time !== undefined) {
+      updateFields['schedule.time'] = time;
+    }
+
+    if (daysOfWeek !== undefined) {
+      updateFields['schedule.daysOfWeek'] = daysOfWeek;
+    }
+
+    if (typeof enabled === 'boolean') {
+      updateFields['schedule.enabled'] = enabled;
+    }
+
+    const updatedRoutine = await Routine.findByIdAndUpdate(
+      req.params.id,
+      {$set: updateFields},
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!updatedRoutine) {
+      return res.status(404).json({ error: 'Routine not found' });
+    }
+
+    //update scheduler
+    scheduler.updateRoutineSchedule(updatedRoutine);
+
+    res.json(updatedRoutine);
+  } catch (error) {
+    console.error('Error updating routine schedule:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//get scheduled routines
+router.get('/scheduled/active', async (_req, res) => {
+  try {
+    const scheduledRoutines = await Routine.find({
+      'scheduled': true,
+      'schedule.enabled': true
+    });
+
+    res.json(scheduledRoutines);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+})
+
 
 module.exports = router;

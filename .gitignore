@@ -7,3 +7,4 @@ MQTT-Ngrok (Docker)/mongo-data/mongod.lock
 /ReactWebApp/mqtt-websocket-proxy/node_modules
 /ReactWebApp/braille-web-app/build
 /ReactWebApp/braille-web-app/.react-router
+/MQTT-Ngrok (Docker)/backend/node_modules

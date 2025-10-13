@@ -25,10 +25,39 @@ const routineSchema = new mongoose.Schema({
       message: 'A routine must contain at least one action'
     }
   },
+  scheduled: {
+    type: Boolean,
+    default: false
+  },
+  schedule: {
+    cronExpression: {
+      type: String,
+      trim: true
+    },
+    time: {
+      type: String,
+      trim: true
+    },
+    daysOfWeek: [{
+      type: Number, //0-6 (Sunday-Saturday)
+      min: 0,
+      max: 6
+    }],
+    enabled: {
+      type: Boolean,
+      default: false
+    }
+  },
+  lastExecuted: {
+    type: Date
+  },
+  nextExecution: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-module.exports = mongoose.model('Routine', routineSchema);
+module.exports = mongoose.model('Routine', routineSchema);
