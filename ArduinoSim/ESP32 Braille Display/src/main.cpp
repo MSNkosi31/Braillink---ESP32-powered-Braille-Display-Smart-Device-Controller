@@ -102,6 +102,7 @@ std::map<char, String> letters = {
   int subMenuCount = 0;          // Number of devices
   String rawDeviceList = "";     // Stores MQTT payload raw
   bool menuReady = false;        // True when menu data received
+  std::map<String, bool> deviceStates; // Tracks device states by name
 
   // Encoder states
   int lastClk = HIGH;
@@ -139,7 +140,7 @@ void displayBrailleFormat(String cells[], String menuOption); // Displays Braill
 void clearBin(); // Clears the binLetter array (all LEDs off)
 void showWelcomeMessage(); // Displays a welcome message on matrix and LCD
 void playBuzz(int freq = 1000, int duration = 200); // Plays a buzzer tone with specified frequency and duration
-
+void doAction();
 
 
 void setup() {
@@ -236,12 +237,7 @@ void loop() {
       Serial.println("Entered room: " + mainMenuDynamic[currentMainOption]);
     } else {
       // Action on device
-      String roomName = mainMenuDynamic[currentMainOption];
-      int dash = roomName.indexOf('-');
-      if (dash != -1) roomName = roomName.substring(0, dash);
-      String deviceName = newSubMenu[currentSubOption];
-      Serial.println("Device action: " + deviceName + " in " + roomName);
-      if (client.connected()) client.publish(CONTROL_TOPIC, (roomName + "," + deviceName + ",toggle").c_str());
+      doAction();
       playBuzz(300, 120);
     }
   }
@@ -283,6 +279,36 @@ void setupWiFi() {
   Serial.println("Connected!");
 }
 
+void doAction() {
+  // - Get selected room name and device name
+  String roomName = mainMenuDynamic[currentMainOption];
+  int dash = roomName.indexOf('-');
+  if (dash != -1) roomName = roomName.substring(0, dash);
+  String deviceName = newSubMenu[currentSubOption];
+
+  String deviceTopic = roomName + "/" + deviceName;       // e.g. "kitchen/Light1"
+  String statusTopic = deviceTopic + "_status";           // e.g. "kitchen/Light1_status"
+
+  // Look up state from map
+  bool currentState = deviceStates[deviceTopic];
+  String action = currentState ? "OFF" : "ON";
+
+  // Publish to control topic
+  if (client.connected()) {
+    client.publish(deviceTopic.c_str(), action.c_str());
+  }
+
+  // Flip locally (optional, will be corrected when Device B publishes back)
+  deviceStates[deviceTopic] = !currentState;
+
+  // Update LCD
+  lcd.setCursor(0, 0);
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print(deviceName);
+  lcd.print("State: " + action);
+}
+
 // =================== MQTT CALLBACK ===================
 // Handles incoming MQTT messages and populates mainMenuDynamic
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -291,6 +317,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println("MQTT received topic:");
   Serial.println(topic);
   Serial.println("payload: " + rawDeviceList);
+
+  // Handle device status updates
+  if (String(topic).endsWith("_status")) {
+    String device = String(topic).substring(0, String(topic).lastIndexOf("_status"));
+    String msg = rawDeviceList;
+    deviceStates[device] = (msg == "ON");
+    Serial.println("Updated state for " + device + ": " + msg);
+  }
 
   if (String(topic) == RESP_TOPIC) {
     // parse rooms separated by commas
@@ -391,6 +425,22 @@ void getDevices(int idxMain) {
   }
 
   for (int i = subMenuCount; i < 10; i++) newSubMenu[i] = "";
+
+  for (int i = 0; i < subMenuCount; i++) {
+    String deviceTopic = mainMenuDynamic[idxMain].substring(0, mainMenuDynamic[idxMain].indexOf('-')) + "/" + newSubMenu[i]; 
+    String statusTopic = deviceTopic + "_status";
+
+    // Subscribe to the status topic
+    client.subscribe(statusTopic.c_str());
+    Serial.println("Subscribed to: " + statusTopic);
+
+    // Ask for the current state
+    client.publish(statusTopic.c_str(), "check");
+    Serial.println("Requested state from: " + deviceTopic);
+
+    // Initialize map with a default OFF until we get a response
+    deviceStates[deviceTopic] = false;
+  }
 }
 
 // =================== UPDATE MENU ===================
