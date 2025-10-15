@@ -1,8 +1,9 @@
 import React from "react";
-import { FaTachometerAlt, FaLightbulb, FaBraille, FaBell, FaUser, FaSignOutAlt } from "react-icons/fa";
+import { FaTachometerAlt, FaLightbulb, FaBraille, FaBell, FaUser, FaRoute, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
-export type TabType = "dashboard" | "devices" | "braille" | "notifications" | "profile";
+
+export type TabType = "dashboard" | "devices" | "braille" | "notifications" | "routes" |"profile";
 
 interface SidebarProps {
     activeTab: TabType;
@@ -34,7 +35,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                         {id: "devices" as TabType, icon: <FaLightbulb/>, label: "Devices"},
                         {id: "braille" as TabType, icon: <FaBraille/>, label: "Braille Display"},
                         {id: "notifications" as TabType, icon: <FaBell/>, label: "Notifications"},
-                        {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"}
+                        { id: "routes" as TabType, icon: <FaRoute />, label: "Routes" },
+                        {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"},
                     ].map((item) => (
                         <li key={item.id}>
                             <button

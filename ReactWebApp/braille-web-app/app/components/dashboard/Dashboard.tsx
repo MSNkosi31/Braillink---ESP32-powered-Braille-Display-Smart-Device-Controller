@@ -6,6 +6,9 @@ import BrailleDisplay from "../brailleDisplay/BrailleDisplay";
 import DevicesManagement from "../devices/DevicesManagement";
 import ProfileSettings from "../auth/profile/ProfileSettings";
 import Notifications from "~/routes/notifications";
+import { Routes } from "react-router-dom";
+import RoutesPage from "../routes/RoutesPage";
+
 
 interface Device {
     id: number;
@@ -118,6 +121,7 @@ const Dashboard: React.FC = () => {
                 {activeTab === "devices" && <DevicesManagement devices={devices} setDevices={setDevices} />}
                 {activeTab === "braille" && <BrailleDisplay devices={devices} />}
                 {activeTab === "notifications" && <Notifications />}
+                {activeTab === "routes" && <RoutesPage />}
                 {activeTab === "profile" && <ProfileSettings />}
             </main>
         </div>
