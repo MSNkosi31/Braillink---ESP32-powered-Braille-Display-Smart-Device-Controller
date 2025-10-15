@@ -4,10 +4,15 @@ agent:
 
 endpoints:
   - name: mqtt-tcp
-    url: tcp://5.tcp.ngrok.io:27483   # must match your reserved TCP address
+    url: tcp://5.tcp.ngrok.io:27483 
     upstream:
       url: mqtt:1883
       protocol: tcp
+
+  - name: mqtt-ws
+    url: braillink-broker.ngrok.app   
+    upstream:
+      url: mqtt:9001
 
   - name: api
     url: braillink-api.ngrok.app
@@ -17,4 +22,4 @@ endpoints:
   - name: website
     url: braillink-site.ngrok.app
     upstream:
-      url: admin-site:6000
+      url: admin-site:3000
