@@ -13,7 +13,7 @@ const char* password = "";
 
 // =================== MQTT SERVER ===================
 const char* mqttServer = "5.tcp.ngrok.io"; //make sure it's the correct server address and that it's not expired.
-const int mqttPort = 27483; //make sure it's the correct port address and that it's not expired.
+const int mqttPort = 12163; //make sure it's the correct port address and that it's not expired.
 
 WiFiClient espClient;
 PubSubClient client(espClient);
