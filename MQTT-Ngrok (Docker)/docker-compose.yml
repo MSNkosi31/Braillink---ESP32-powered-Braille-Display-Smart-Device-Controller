@@ -15,7 +15,7 @@ services:
 
   ngrok:
     image: ngrok/ngrok:latest
-    container_name: ngrok-tunnels
+    container_name: ngrok
     command: start --all --config /etc/ngrok.yml
     ports:
       - "4040:4040"
@@ -25,6 +25,8 @@ services:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
     depends_on:
       - mqtt
+      - backend
+      - website
     restart: unless-stopped
     networks:
       - app-network
@@ -61,7 +63,7 @@ services:
     build: ./braille-web-app
     container_name: admin-site
     ports:
-      - "6000:6000"
+      - "3000:3000"
     depends_on:
       - backend
       - mqtt

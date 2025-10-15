@@ -3,9 +3,14 @@
 /ArduinoSim/ESP32 Braille Display/.pio
 /MQTT-Ngrok (Docker)/mongo-data
 MQTT-Ngrok (Docker)/mongo-data/mongod.lock
-/ReactWebApp/braille-web-app/node_modules
+ReactWebApp/braille-web-app/node_modules
 /ReactWebApp/mqtt-websocket-proxy/node_modules
 /ReactWebApp/braille-web-app/build
 /ReactWebApp/braille-web-app/.react-router
-/MQTT-Ngrok (Docker)/backend/node_modules
-/ArduinoSim/ESP32 Braille Display/.pio/build
+/MQTT-Ngrok (Docker)/mongo-data
+/MQTT-Ngrok (Docker)/mongo-data/WiredTiger.turtle
+/MQTT-Ngrok (Docker)/braille-web-app/build
+/MQTT-Ngrok (Docker)/braille-web-app/node_modules
+MQTT-Ngrok (Docker)/mongo-data/sizeStorer.wt
+MQTT-Ngrok (Docker)/mongo-data/sizeStorer.wt
+MQTT-Ngrok (Docker)/mongo-data/WiredTiger.wt
