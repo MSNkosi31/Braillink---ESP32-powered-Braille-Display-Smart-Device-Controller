@@ -1,16 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import DeviceCard from "../common/DeviceCard";
 import AddDeviceModal from "./AddDeviceModal";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
-import { useToast } from "~/contexts/ToastContext";
+// import { useToast } from "~/contexts/ToastContext";
 
 interface Device {
-    id: number;
+    id: string;
     name: string;
     type: "light" | "temp" | "door" | "voice";
     status: boolean;
     location: string;
+    deviceTopic: string;
+    deviceStatusTopic: string;
+    battery?: number;
 }
 
 interface DevicesManagementProps {
@@ -18,26 +21,149 @@ interface DevicesManagementProps {
     setDevices: (devices: Device[]) => void;
 }
 
-const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevices }) => {
+const API_BASE = "https://braillink-api.ngrok.app/api";
+
+interface ApiDevice {
+    _id: string;
+    deviceName: string;
+    deviceTopic: string;
+    deviceStatusTopic: string;
+}
+
+interface Room {
+    roomName: string;
+    devices: ApiDevice[];
+}
+
+interface ApiResponse {
+    rooms: Room[];
+}
+
+const DevicesManagement: React.FC<DevicesManagementProps> = ({
+    devices = [],
+    setDevices
+}) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
-    const { showToast } = useToast();
-
-    const handleAddDevice = (deviceData: Omit<Device, "id">) => {
-        const newDevice: Device = {
-            ...deviceData,
-            id: devices.length > 0 ? Math.max(...devices.map(d => d.id)) + 1 : 1
-        };
-        setDevices([...devices, newDevice]);
-        setShowAddModal(false);
-        showToast(`Device "${newDevice.name}" added successfully`, "success");
+    // const { showToast } = useToast();
+    const showToast = (message: string, type: string) => {
+        console.log(`${type.toUpperCase()}: ${message}`);
     };
 
-    const handleDeleteDevice = () => {
+    // Function to transform API response to expected Device format
+    const transformApiDataToDevices = (apiData: ApiResponse): Device[] => {
+        const devices: Device[] = [];
+
+        apiData.rooms.forEach(room => {
+            room.devices.forEach(apiDevice => {
+                // Determine device type based on name
+                const getDeviceType = (name: string): "light" | "temp" | "door" | "voice" => {
+                    const lowerName = name.toLowerCase();
+                    if (lowerName.includes('light') || lowerName.includes('lamp')) return 'light';
+                    if (lowerName.includes('temp') || lowerName.includes('thermo')) return 'temp';
+                    if (lowerName.includes('door') || lowerName.includes('lock')) return 'door';
+                    if (lowerName.includes('voice') || lowerName.includes('speaker')) return 'voice';
+                    return 'light';
+                };
+
+                devices.push({
+                    id: apiDevice._id,
+                    name: apiDevice.deviceName,
+                    type: getDeviceType(apiDevice.deviceName),
+                    status: false,
+                    location: room.roomName,
+                    deviceTopic: apiDevice.deviceTopic,
+                    deviceStatusTopic: apiDevice.deviceStatusTopic,
+                    battery: undefined
+                });
+            });
+        });
+
+        return devices;
+    };
+
+    const fetchDevices = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/devices`);
+            if (res.ok) {
+                const apiData: ApiResponse = await res.json();
+                const transformedDevices = transformApiDataToDevices(apiData);
+                setDevices(transformedDevices);
+            } else {
+                throw new Error("Failed to fetch devices");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error fetching devices", "error");
+        }
+    };
+
+    useEffect(() => {
+        fetchDevices();
+    }, []);
+
+    const handleAddDevice = async (deviceData: Omit<Device, "id">) => {
+        try {
+            // Send as JSON in the request body instead of URL parameters
+            const apiDeviceData = {
+                deviceName: deviceData.name,
+                deviceTopic: deviceData.deviceTopic,
+                deviceStatusTopic: deviceData.deviceStatusTopic,
+                roomName: deviceData.location
+            };
+
+            const res = await fetch(`${API_BASE}/devices`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(apiDeviceData)
+            });
+
+            if (res.ok) {
+                await fetchDevices(); // Refetch to sync with server
+                setShowAddModal(false);
+                showToast(`Device "${deviceData.name}" added successfully`, "success");
+            } else {
+                const errorText = await res.text();
+                throw new Error(`Failed to add device: ${errorText}`);
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error adding device", "error");
+        }
+    };
+
+    const handleDeleteDevice = async () => {
         if (!deviceToDelete) return;
-        setDevices(devices.filter(device => device.id !== deviceToDelete.id));
-        showToast(`Device "${deviceToDelete.name}" deleted`, "error");
-        setDeviceToDelete(null);
+        try {
+            // Updated to match the correct API endpoint format from documentation
+            const res = await fetch(`${API_BASE}/devices/${deviceToDelete.id}`, {
+                method: "DELETE",
+            });
+            if (res.ok) {
+                await fetchDevices(); // Refetch to sync with server
+                showToast(`Device "${deviceToDelete.name}" deleted`, "error");
+                setDeviceToDelete(null);
+            } else {
+                throw new Error("Failed to delete device");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error deleting device", "error");
+        }
+    };
+
+    // Since we're using MQTT for status updates, this will be handled by the parent component
+    const handleToggleDevice = async (deviceId: string) => {
+        // This will be handled by MQTT in the parent component
+        console.log(`Toggle device ${deviceId} - handled by MQTT`);
+    };
+
+    // Since we're using MQTT for status checks, this will be handled by the parent component
+    const handleStatusCheck = (deviceId: string) => {
+        // This will be handled by MQTT in the parent component
+        console.log(`Check status for device ${deviceId} - handled by MQTT`);
     };
 
     return (
@@ -58,11 +184,9 @@ const DevicesManagement: React.FC<DevicesManagementProps> = ({ devices, setDevic
                     <div key={device.id} className="relative group">
                         <DeviceCard
                             device={device}
-                            onToggle={(id) => {
-                                setDevices(devices.map(d => 
-                                    d.id === id ? {...d, status: !d.status} : d
-                                ));
-                            }}
+                            onToggle={handleToggleDevice}
+                            onStatusCheck={() => handleStatusCheck(device.id)}
+                            battery={device.battery}
                         />
                         <button
                             onClick={() => setDeviceToDelete(device)}

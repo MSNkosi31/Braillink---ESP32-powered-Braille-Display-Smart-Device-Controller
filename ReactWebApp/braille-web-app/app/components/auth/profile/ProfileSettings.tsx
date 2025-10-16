@@ -45,7 +45,7 @@ interface AccessibilitySettings {
 }
 
 export default function ProfileSettings() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, updateProfile, changePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications' | 'accessibility'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -94,14 +94,18 @@ export default function ProfileSettings() {
 
     setLoading(true);
     try {
-      // Mock profile update
-      setTimeout(() => {
-        setIsEditing(false);
-        showMessage('success', 'Profile updated successfully!');
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      showMessage('error', 'Failed to update profile. Please try again.');
+      await updateProfile({
+        displayName: profileData.displayName,
+        phoneNumber: profileData.phoneNumber,
+        organization: profileData.organization,
+        role: profileData.role as 'admin' | 'caregiver' | 'family'
+      });
+      setIsEditing(false);
+      showMessage('success', 'Profile updated successfully!');
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      showMessage('error', error.message || 'Failed to update profile. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -121,17 +125,62 @@ export default function ProfileSettings() {
 
     setLoading(true);
     try {
-      // Mock password update
-      setTimeout(() => {
-        setSecurityData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        showMessage('success', 'Password updated successfully!');
-        setLoading(false);
-      }, 1000);
+      await changePassword(securityData.currentPassword, securityData.newPassword);
+      setSecurityData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showMessage('success', 'Password updated successfully!');
     } catch (error: any) {
-      showMessage('error', 'Failed to update password. Please try again.');
+      showMessage('error', error.message || 'Failed to update password. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
+
+  const handleAccessibilityUpdate = async () => {
+    setLoading(true);
+    try {
+      // Save accessibility settings to localStorage for persistence
+      localStorage.setItem('accessibilitySettings', JSON.stringify(accessibility));
+      showMessage('success', 'Accessibility settings saved successfully!');
+    } catch (error: any) {
+      showMessage('error', 'Failed to save accessibility settings. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNotificationUpdate = async () => {
+    setLoading(true);
+    try {
+      // Save notification settings to localStorage for persistence
+      localStorage.setItem('notificationSettings', JSON.stringify(notifications));
+      showMessage('success', 'Notification settings saved successfully!');
+    } catch (error: any) {
+      showMessage('error', 'Failed to save notification settings. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load settings from localStorage on component mount
+  useEffect(() => {
+    const savedAccessibility = localStorage.getItem('accessibilitySettings');
+    if (savedAccessibility) {
+      try {
+        setAccessibility(JSON.parse(savedAccessibility));
+      } catch (error) {
+        console.error('Error loading accessibility settings:', error);
+      }
+    }
+
+    const savedNotifications = localStorage.getItem('notificationSettings');
+    if (savedNotifications) {
+      try {
+        setNotifications(JSON.parse(savedNotifications));
+      } catch (error) {
+        console.error('Error loading notification settings:', error);
+      }
+    }
+  }, []);
 
   const TabButton = ({ id, label, icon }: { id: string; label: string; icon: React.ReactNode }) => (
     <button
@@ -396,7 +445,17 @@ export default function ProfileSettings() {
               {/* Notifications Tab */}
               {activeTab === 'notifications' && (
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Notification Preferences</h2>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Notification Preferences</h2>
+                    <button
+                      onClick={handleNotificationUpdate}
+                      disabled={loading}
+                      className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      <FaSave />
+                      <span>{loading ? 'Saving...' : 'Save Settings'}</span>
+                    </button>
+                  </div>
 
                   <div className="space-y-6">
                     {Object.entries(notifications).map(([key, value]) => (
@@ -431,7 +490,17 @@ export default function ProfileSettings() {
               {/* Accessibility Tab */}
               {activeTab === 'accessibility' && (
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Accessibility Settings</h2>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Accessibility Settings</h2>
+                    <button
+                      onClick={handleAccessibilityUpdate}
+                      disabled={loading}
+                      className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      <FaSave />
+                      <span>{loading ? 'Saving...' : 'Save Settings'}</span>
+                    </button>
+                  </div>
 
                   <div className="space-y-6">
                     {Object.entries(accessibility).map(([key, value]) => (

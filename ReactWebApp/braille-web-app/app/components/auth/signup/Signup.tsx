@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '~/contexts/AuthContext';
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -11,7 +12,9 @@ export default function Signup() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
+  const { signup, logout } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -24,21 +27,75 @@ export default function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
     setIsLoading(true);
+    setError('');
+    setSuccess('');
     
     try {
-      //need to add real authentication logic
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      navigate('/');
+      console.log('Starting signup process...');
+      setSuccess('Creating your account...');
+      
+      await signup(formData.email, formData.password, formData.name, formData.role);
+      console.log('Signup successful, logging out...');
+      
+      setSuccess('Account created! Setting up your profile...');
+      
+      // Log out the user after signup so they need to sign in manually
+      await logout();
+      console.log('Logout successful');
+      
+      setSuccess('Account created successfully! Redirecting to sign in...');
+      
+      // Clear form data
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        role: 'caregiver'
+      });
+      
+      // Redirect to sign in page after a very short delay
+      setTimeout(() => {
+        navigate('/');
+      }, 500);
+      
+      setIsLoading(false);
     } catch (err) {
-      setError('Registration failed. Please try again.');
-    } finally {
+      console.error('Signup error:', err);
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (err instanceof Error) {
+        // Handle specific Firebase error codes with user-friendly messages
+        if (err.message.includes('auth/email-already-in-use')) {
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (err.message.includes('auth/weak-password')) {
+          errorMessage = 'Password is too weak. Please choose a stronger password.';
+        } else if (err.message.includes('auth/invalid-email')) {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (err.message.includes('auth/operation-not-allowed')) {
+          errorMessage = 'Email signup is currently disabled. Please contact support.';
+        } else if (err.message.includes('auth/network-request-failed')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else {
+          // For other errors, show a generic message
+          errorMessage = 'Registration failed. Please try again.';
+        }
+      }
+      
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -81,6 +138,37 @@ export default function Signup() {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-red-700">{error}</p>
+                  {error.includes('already exists') && (
+                    <p className="text-sm text-red-600 mt-1">
+                      <Link to="/" className="underline hover:text-red-800">
+                        Click here to sign in
+                      </Link>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-green-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-green-700">{success}</p>
                 </div>
               </div>
             </div>
@@ -249,7 +337,10 @@ export default function Signup() {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    Creating account...
+                    {success.includes('Creating') ? 'Creating account...' : 
+                     success.includes('Setting up') ? 'Setting up profile...' : 
+                     success.includes('successfully') ? 'Redirecting...' : 
+                     'Creating account...'}
                   </>
                 ) : (
                   'Create Account'
