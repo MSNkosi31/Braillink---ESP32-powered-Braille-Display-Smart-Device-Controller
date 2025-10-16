@@ -10,7 +10,6 @@ import Notifications from "~/routes/notifications";
 import { Routes } from "react-router-dom";
 import RoutesPage from "../routes/RoutesPage";
 
-
 interface Device {
     id: string;
     name: string;
@@ -95,7 +94,7 @@ const Dashboard: React.FC = () => {
 
     // Initialize MQTT connection and subscribe to status topics
     const initializeMQTT = (devices: Device[]) => {
-        const MQTT_BROKER = 'ws://localhost:8080/mqtt';
+        const MQTT_BROKER = 'wss://braillink-broker.ngrok.app/mqtt';
         const MQTT_CLIENT_ID = 'braillink-' + Math.random().toString(16).substr(2, 8);
 
         const connectionOptions: mqtt.IClientOptions = {
@@ -104,6 +103,8 @@ const Dashboard: React.FC = () => {
             reconnectPeriod: 1000,
             connectTimeout: 30000,
             keepalive: 60,
+            protocol: 'wss',
+            rejectUnauthorized: false
         };
 
         console.log('🔗 Attempting MQTT connection to:', MQTT_BROKER);
@@ -117,7 +118,7 @@ const Dashboard: React.FC = () => {
 
             const successLog: Log = {
                 id: Date.now(),
-                message: "MQTT connected successfully",
+                message: "MQTT connected successfully to broker",
                 timestamp: new Date(),
                 type: "success"
             };
@@ -189,7 +190,7 @@ const Dashboard: React.FC = () => {
             setIsMqttConnected(false);
             const errorLog: Log = {
                 id: Date.now(),
-                message: `MQTT error: ${error.message}`,
+                message: `MQTT connection error: ${error.message}`,
                 timestamp: new Date(),
                 type: "error"
             };
