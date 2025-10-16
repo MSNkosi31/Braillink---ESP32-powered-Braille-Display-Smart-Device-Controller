@@ -1,0 +1,25 @@
+version: 3
+agent:
+  authtoken: 32jw5slRbNwF0enmm8OTUMeHubf_67ARgHZWzrWxPVaQGDJwo
+
+endpoints:
+  - name: mqtt-tcp
+    url: tcp://10.tcp.eu.ngrok.io:25115 
+    upstream:
+      url: mqtt-broker:1883
+      protocol: tcp
+
+  - name: mqtt-ws
+    url: braillink-broker.ngrok.app   
+    upstream:
+      url: mqtt-broker:9001
+
+  - name: api
+    url: braillink-api.ngrok.app
+    upstream:
+      url: devices-api:5000
+
+  - name: website
+    url: braillink-site.ngrok.app
+    upstream:
+      url: admin-site:3000

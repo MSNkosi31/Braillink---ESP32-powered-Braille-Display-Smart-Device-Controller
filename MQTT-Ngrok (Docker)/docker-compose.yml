@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    command: start --all --config /etc/ngrok.yml
+    ports:
+      - "4040:4040"
+    volumes:
+      - ./ngrok.yml:/etc/ngrok.yml
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      - mqtt
+      - backend
+      - website
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo-data:/data/db
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    container_name: devices-api
+    env_file:
+      - ./backend/.env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - mqtt
+    restart: unless-stopped
+    networks:
+      - app-network
+    environment:
+      - TZ=Africa/Johannesburg
+
+  website:
+    build: ./braille-web-app
+    container_name: admin-site
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+      - mqtt
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
