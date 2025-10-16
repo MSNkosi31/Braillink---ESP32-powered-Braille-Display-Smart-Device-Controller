@@ -7,7 +7,7 @@ interface Schedule {
   endTime: string;
 }
 
-interface Route {
+interface Routine{
   id: number;
   name: string;
   description: string;
@@ -15,8 +15,8 @@ interface Route {
   schedule?: Schedule | null;
 }
 
-const RoutesPage: React.FC = () => {
-  const [routes, setRoutes] = useState<Route[]>(() => {
+const RoutinePage: React.FC = () => {
+  const [routes, setRoutes] = useState<Routine[]>(() => {
     const saved = localStorage.getItem("routes");
     if (saved) return JSON.parse(saved);
     return [
@@ -58,7 +58,7 @@ const RoutesPage: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+  const [editingRoute, setEditingRoute] = useState<Routine | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -95,7 +95,7 @@ const RoutesPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleOpenEditModal = (route: Route) => {
+  const handleOpenEditModal = (route: Routine) => {
     setEditingRoute(route);
     setForm({
       name: route.name,
@@ -123,7 +123,7 @@ const RoutesPage: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newRoute: Route = {
+    const newRoute: Routine = {
       id: isEditing && editingRoute ? editingRoute.id : Date.now(),
       name: form.name.trim(),
       description: form.description.trim(),
@@ -151,7 +151,7 @@ const RoutesPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-          Routes Management
+          Routines Management
         </h1>
         <button
           onClick={handleOpenAddModal}
@@ -378,4 +378,4 @@ const RoutesPage: React.FC = () => {
   );
 };
 
-export default RoutesPage;
+export default RoutinePage;
