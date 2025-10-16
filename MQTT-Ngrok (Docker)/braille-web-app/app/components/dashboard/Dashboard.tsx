@@ -92,7 +92,7 @@ const Dashboard: React.FC = () => {
 
     // Initialize MQTT connection and subscribe to status topics
     const initializeMQTT = (devices: Device[]) => {
-        const MQTT_BROKER = 'https://braillink-broker.ngrok.app';
+        const MQTT_BROKER = 'wss://braillink-broker.ngrok.app/mqtt';
         const MQTT_CLIENT_ID = 'braillink-' + Math.random().toString(16).substr(2, 8);
 
         const connectionOptions: mqtt.IClientOptions = {

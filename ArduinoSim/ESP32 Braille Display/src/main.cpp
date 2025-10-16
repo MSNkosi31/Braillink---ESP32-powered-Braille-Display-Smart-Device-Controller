@@ -12,16 +12,15 @@ const char* ssid = "Wokwi-GUEST";
 const char* password = "";
 
 // =================== MQTT SERVER ===================
-const char* mqttServer = "5.tcp.ngrok.io"; //make sure it's the correct server address and that it's not expired.
-const int mqttPort = 12163; //make sure it's the correct port address and that it's not expired.
+const char* mqttServer = "10.tcp.eu.ngrok.io";
+const int mqttPort = 25115;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 const char* REQ_TOPIC = "deviceList";
 const char* RESP_TOPIC = "deviceList/response";
-const char* CONTROL_TOPIC = "device/control"; // topic to publish payload control messages. 
-
+const char* CONTROL_TOPIC = "device/control";
 
 // =================== MATRIX DISPLAY CONFIG ===================
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
@@ -30,7 +29,7 @@ const char* CONTROL_TOPIC = "device/control"; // topic to publish payload contro
 #define DATA_PIN 23
 #define CS_PIN 21
 
-MD_MAX72XX matrix = MD_MAX72XX(MD_MAX72XX::PAROLA_HW, CS_PIN, MAX_DEVICES); // DATA_PIN, CLK_PIN,
+MD_MAX72XX matrix = MD_MAX72XX(MD_MAX72XX::PAROLA_HW, CS_PIN, MAX_DEVICES);
 
 //=================== LCD SCREEN===================
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -53,96 +52,63 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // =================== BRAILLE MAPPING ===================
 std::map<char, String> letters = {
-  {'a', "100000"},
-  {'b', "110000"},
-  {'c', "100100"},
-  {'d', "100110"},
-  {'e', "100010"},
-  {'f', "110100"},
-  {'g', "110110"},
-  {'h', "110010"},
-  {'i', "010100"},
-  {'j', "010110"},
-  {'k', "101000"},
-  {'l', "111000"},
-  {'m', "101100"},
-  {'n', "101110"},
-  {'o', "101010"},
-  {'p', "111100"},
-  {'q', "111110"},
-  {'r', "111010"},
-  {'s', "011100"},
-  {'t', "011110"},
-  {'u', "101001"},
-  {'v', "111001"},
-  {'w', "010111"},
-  {'x', "101101"},
-  {'y', "111101"},
-  {'z', "101011"},
-  {'#', "001111"},
-  {'0', "010110"},
-  {'1', "100000"},
-  {'2', "110000"},
-  {'3', "100100"},
-  {'4', "100110"},
-  {'5', "100010"},
-  {'6', "110100"},
-  {'8', "110010"},
-  {'9', "010100"}};
-  // =================== GLOBAL VARIABLES ===================
-  
-  String binLetter [13] = {"000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000","000000"};//Sets all leds off
-  int currentMainOption = 0;     // Currently selected room index
-  int currentSubOption = 0;      // Currently selected device index
-  bool welcomeShown = false;     // Show welcome message once
-  bool inSubMenu = false;        // Tracks if we’re in device submenu
-  String mainMenuDynamic[10];    // List of rooms (max 10)
-  int mainMenuCount = 0;         // Number of rooms
-  String newSubMenu[10];         // List of devices (max 10)
-  int subMenuCount = 0;          // Number of devices
-  String rawDeviceList = "";     // Stores MQTT payload raw
-  bool menuReady = false;        // True when menu data received
-  std::map<String, bool> deviceStates; // Tracks device states by name
+  {'a', "100000"},{'b', "110000"},{'c', "100100"},{'d', "100110"},
+  {'e', "100010"},{'f', "110100"},{'g', "110110"},{'h', "110010"},
+  {'i', "010100"},{'j', "010110"},{'k', "101000"},{'l', "111000"},
+  {'m', "101100"},{'n', "101110"},{'o', "101010"},{'p', "111100"},
+  {'q', "111110"},{'r', "111010"},{'s', "011100"},{'t', "011110"},
+  {'u', "101001"},{'v', "111001"},{'w', "010111"},{'x', "101101"},
+  {'y', "111101"},{'z', "101011"},{'#', "001111"},{'0', "010110"},
+  {'1', "100000"},{'2', "110000"},{'3', "100100"},{'4', "100110"},
+  {'5', "100010"},{'6', "110100"},{'8', "110010"},{'9', "010100"}
+};
 
-  // Encoder states
-  int lastClk = HIGH;
-  unsigned long lastEncoderTime = 0;
-  const unsigned long encoderDebounce = 120; // debounce in ms
+// =================== GLOBAL VARIABLES ===================
+String binLetter[13] = {"000000"};
+int currentMainOption = 0;
+int currentSubOption = 0;
+bool welcomeShown = false;
+bool inSubMenu = false;
+bool viewingStatus = false;  // NEW: track when user is viewing device status
+String mainMenuDynamic[10];
+int mainMenuCount = 0;
+String newSubMenu[10];
+int subMenuCount = 0;
+String rawDeviceList = "";
+bool menuReady = false;
+std::map<String, bool> deviceStates;
 
-  // Idle timeout
-  unsigned long lastActiveTime = 0;
-  const unsigned long activeDuration = 10000; // 10s before idle
+int lastClk = HIGH;
+unsigned long lastEncoderTime = 0;
+const unsigned long encoderDebounce = 120;
 
-  // MQTT reconnect timing
-  unsigned long lastMqttAttempt = 0;
-  const unsigned long mqttRetryInterval = 5000;
+unsigned long lastActiveTime = 0;
+const unsigned long activeDuration = 10000;
 
-  // Button states
-  bool lastEnterState = LOW;
-  bool lastBackState  = LOW;
+unsigned long lastMqttAttempt = 0;
+const unsigned long mqttRetryInterval = 5000;
 
-  // Buzzer
-  bool buzzing = false;
-  unsigned long buzzEndTime = 0;
+bool lastEnterState = LOW;
+bool lastBackState  = LOW;
 
-
+bool buzzing = false;
+unsigned long buzzEndTime = 0;
 
 // =================== FUNCTION DECLARATIONS ===================
-void setupWiFi(); // Connects to WiFi using the configured SSID and password
-void connectMQTT(); // Connects to MQTT server and subscribes/publishes topics
-void loopMQTT(); // Processes MQTT messages in the loop
-void mqttCallback(char* topic, byte* payload, unsigned int length); // incoming MQTT handler
-
-void updateMenu(int idx, String selectedMenu[], int menuCount); // Updates the menu selection, wraps index, updates LED matrix and LCD
-void getDevices(int idxMain); // Extracts devices from a room entry in mainMenuDynamic into newSubMenu array
-void convertWord(String word, String binLetter[]); // Converts a word into binary strings corresponding to Braille cells
-void displayBrailleFormat(String cells[], String menuOption); // Displays Braille cells on the LED matrix using the cells array
-void clearBin(); // Clears the binLetter array (all LEDs off)
-void showWelcomeMessage(); // Displays a welcome message on matrix and LCD
-void playBuzz(int freq = 1000, int duration = 200); // Plays a buzzer tone with specified frequency and duration
+void setupWiFi();
+void connectMQTT();
+void loopMQTT();
+void mqttCallback(char* topic, byte* payload, unsigned int length);
+void updateMenu(int idx, String selectedMenu[], int menuCount);
+void getDevices(int idxMain);
+void convertWord(String word, String binLetter[]);
+void displayBrailleFormat(String cells[], String menuOption);
+void clearBin();
+void showWelcomeMessage();
+void playBuzz(int freq = 1000, int duration = 200);
 void doAction();
-
-
+void showBrailleStatus(bool state, String premsg);
+// =================== SETUP ===================
 void setup() {
   Serial.begin(9600);
   matrix.begin();
@@ -155,13 +121,12 @@ void setup() {
   pinMode(BACK_PIN, INPUT_PULLDOWN);
   pinMode(BUZZ_PIN, OUTPUT);
   pinMode(PROX_PIN, INPUT);
-
   pinMode(ENCODER_CLK, INPUT);
   pinMode(ENCODER_DT, INPUT);
 
-  Wire.begin(16, 17); // SDA = 16, SCL = 17
-  lcd.init();         // Initialize LCD
-  lcd.backlight();    // Turn on backlight
+  Wire.begin(16, 17);
+  lcd.init();
+  lcd.backlight();
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("System Ready");
@@ -177,98 +142,109 @@ void setup() {
   for (int i=0;i<10;i++) newSubMenu[i] = "";
 }
 
-
+// =================== LOOP ===================
 void loop() {
-  // Maintain MQTT connection and process messages
   loopMQTT();
 
-  // If we haven't received a menu yet, do not proceed with full UI.
   if (!menuReady) {
-    // Optionally show a default / loading message:
     lcd.setCursor(0, 0);
     lcd.print("Waiting for menu ");
-    delay(200); // small delay to avoid tight loop
+    delay(200);
     return;
   }
 
-  // --- ROTARY ENCODER HANDLING ---
   int newClk = digitalRead(ENCODER_CLK);
-  int dtVal   = digitalRead(ENCODER_DT);
+  int dtVal  = digitalRead(ENCODER_DT);
   unsigned long now = millis();
 
   if (newClk != lastClk && newClk == LOW && now - lastEncoderTime > encoderDebounce) {
     lastEncoderTime = now;
 
     if (!inSubMenu) {
-      // Move through rooms
       if (dtVal != newClk) currentMainOption++;
       else currentMainOption--;
       if (currentMainOption >= mainMenuCount) currentMainOption = 0;
       if (currentMainOption < 0) currentMainOption = mainMenuCount - 1;
-      Serial.println("Main menu moved to: " + mainMenuDynamic[currentMainOption]);
       updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
       playBuzz(831, 80);
     } else {
-      // Move through devices
+      viewingStatus = false; // reset if scrolling
       if (dtVal != newClk) currentSubOption++;
       else currentSubOption--;
       if (currentSubOption >= subMenuCount) currentSubOption = 0;
       if (currentSubOption < 0) currentSubOption = subMenuCount - 1;
-      Serial.println("Sub menu moved to: " + newSubMenu[currentSubOption]);
       updateMenu(currentSubOption, newSubMenu, subMenuCount);
       playBuzz(659, 80);
     }
   }
   lastClk = newClk;
 
-  // --- BUTTONS HANDLING ---
   bool enterState = digitalRead(ENTER_PIN);
   bool backState  = digitalRead(BACK_PIN);
 
-  // Enter button pressed
+  // --- ENTER BUTTON HANDLING ---
   if (enterState == HIGH && lastEnterState == LOW) {
     if (!inSubMenu) {
-      // Enter devices list of a room
       inSubMenu = true;
+      viewingStatus = false;
       currentSubOption = 0;
       getDevices(currentMainOption);
       if (subMenuCount > 0) updateMenu(currentSubOption, newSubMenu, subMenuCount);
       playBuzz(523, 100);
-      Serial.println("Entered room: " + mainMenuDynamic[currentMainOption]);
     } else {
-      // Action on device
-      doAction();
-      playBuzz(300, 120);
-    }
+        if (!viewingStatus) {
+          // First press shows status
+          viewingStatus = true;
+          String room = mainMenuDynamic[currentMainOption];
+          int dash = room.indexOf('-');
+          if (dash != -1) room = room.substring(0, dash);
+          String devTopic = room + "/" + newSubMenu[currentSubOption];
+          bool state = deviceStates[devTopic];
+
+          // --- LCD update ---
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Device:");
+          lcd.print(newSubMenu[currentSubOption]);
+          lcd.setCursor(0, 1);
+          lcd.print("Status: ");
+          lcd.print(state ? "ON " : "OFF");
+
+          // --- Braille update (NEW) ---
+         showBrailleStatus(state, "Is ");
+
+          Serial.println("Viewing status of: " + devTopic + " = " + (state ? "ON" : "OFF"));
+          playBuzz(440, 100);
+        }else {
+            // Second press toggles
+            doAction();
+            viewingStatus = false;
+            playBuzz(300, 120);
+          }
+      }
   }
 
-  // Back button pressed
+  // --- BACK BUTTON HANDLING ---
   if (backState == HIGH && lastBackState == LOW) {
     if (inSubMenu) {
-      // Return to rooms menu
       inSubMenu = false;
+      viewingStatus = false;
       currentSubOption = 0;
       updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
       playBuzz(250, 140);
-      Serial.println("Returned to main menu: " + mainMenuDynamic[currentMainOption]);
     }
   }
 
-  // Save button states
   lastEnterState = enterState;
   lastBackState = backState;
 
-  // --- NON-BLOCKING BUZZER CONTROL ---
   if (buzzing && millis() >= buzzEndTime) {
     noTone(BUZZ_PIN);
     buzzing = false;
   }
 }
 
-
-
 // =================== FUNCTIONS ===================
-
 void setupWiFi() {
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
@@ -280,37 +256,32 @@ void setupWiFi() {
 }
 
 void doAction() {
-  // - Get selected room name and device name
   String roomName = mainMenuDynamic[currentMainOption];
   int dash = roomName.indexOf('-');
   if (dash != -1) roomName = roomName.substring(0, dash);
   String deviceName = newSubMenu[currentSubOption];
+  String deviceTopic = roomName + "/" + deviceName;
+  String statusTopic = deviceTopic + "_status";
 
-  String deviceTopic = roomName + "/" + deviceName;       // e.g. "kitchen/Light1"
-  String statusTopic = deviceTopic + "_status";           // e.g. "kitchen/Light1_status"
-
-  // Look up state from map
   bool currentState = deviceStates[deviceTopic];
   String action = currentState ? "OFF" : "ON";
 
-  // Publish to control topic
   if (client.connected()) {
     client.publish(deviceTopic.c_str(), action.c_str());
   }
 
-  // Flip locally (optional, will be corrected when Device B publishes back)
   deviceStates[deviceTopic] = !currentState;
 
-  // Update LCD
-  lcd.setCursor(0, 0);
   lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Toggled:");
   lcd.setCursor(0, 1);
-  lcd.print(deviceName);
-  lcd.print("State: " + action);
+  lcd.print(deviceName + " -> " + action);
+
+  showBrailleStatus(!currentState, "Turning ");
 }
 
 // =================== MQTT CALLBACK ===================
-// Handles incoming MQTT messages and populates mainMenuDynamic
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   rawDeviceList = "";
   for (unsigned int i = 0; i < length; i++) rawDeviceList += (char)payload[i];
@@ -318,16 +289,30 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println(topic);
   Serial.println("payload: " + rawDeviceList);
 
-  // Handle device status updates
+  // Handle status updates
   if (String(topic).endsWith("_status")) {
     String device = String(topic).substring(0, String(topic).lastIndexOf("_status"));
     String msg = rawDeviceList;
-    deviceStates[device] = (msg == "ON");
+    bool isOn = (msg == "ON");
+    deviceStates[device] = isOn;
     Serial.println("Updated state for " + device + ": " + msg);
+
+    // If viewing same device, refresh
+    if (inSubMenu && viewingStatus) {
+      String currentRoom = mainMenuDynamic[currentMainOption];
+      int dash = currentRoom.indexOf('-');
+      if (dash != -1) currentRoom = currentRoom.substring(0, dash);
+      String currentDevice = currentRoom + "/" + newSubMenu[currentSubOption];
+      if (device == currentDevice) {
+        lcd.setCursor(0, 1);
+        lcd.print("Status: ");
+        lcd.print(isOn ? "ON " : "OFF");
+      }
+    }
   }
 
+  // Handle menu data
   if (String(topic) == RESP_TOPIC) {
-    // parse rooms separated by commas
     mainMenuCount = 0;
     int start = 0;
     while (start < rawDeviceList.length() && mainMenuCount < 10) {
@@ -337,68 +322,68 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       if (item.length() > 0) {
         mainMenuDynamic[mainMenuCount++] = item;
       }
-
       if (comma == -1) break;
       start = comma + 1;
     }
 
     menuReady = true;
-    
-    if (!inSubMenu) {
-      // --- Still in main menu: refresh rooms ---
-      updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
-      Serial.println("Main menu refreshed. Rooms count: " + String(mainMenuCount));
-    } else {
-      // --- In a submenu: refresh devices for the same room ---
-      getDevices(currentMainOption);
-      if (subMenuCount > 0) {
-        updateMenu(currentSubOption, newSubMenu, subMenuCount);
-        Serial.println("Submenu refreshed for room: " + mainMenuDynamic[currentMainOption]);
-      } else {
-        Serial.println("No devices found for room: " + mainMenuDynamic[currentMainOption]);
+
+    // Subscribe to all status topics
+    for (int i = 0; i < mainMenuCount; i++) {
+      String entry = mainMenuDynamic[i];
+      int dashPos = entry.indexOf('-');
+      if (dashPos != -1) {
+        String room = entry.substring(0, dashPos);
+        String devicesStr = entry.substring(dashPos + 1);
+        int start = 0;
+        while (start < devicesStr.length()) {
+          int semi = devicesStr.indexOf(';', start);
+          String dev = (semi == -1) ? devicesStr.substring(start) : devicesStr.substring(start, semi);
+          dev.trim();
+          if (dev.length() > 0) {
+            String topic = room + "/" + dev + "_status";
+            client.subscribe(topic.c_str());
+            deviceStates[room + "/" + dev] = false;
+            Serial.println("Subscribed globally to: " + topic);
+          }
+          if (semi == -1) break;
+          start = semi + 1;
+        }
       }
     }
+
+    if (!inSubMenu) updateMenu(currentMainOption, mainMenuDynamic, mainMenuCount);
   }
 }
 
-// Try to connect to MQTT broker. Non-blocking caller should call this periodically.
 void connectMQTT() {
-    if (client.connected()) return;
+  if (client.connected()) return;
+  unsigned long now = millis();
+  if (now - lastMqttAttempt < mqttRetryInterval) return;
+  lastMqttAttempt = now;
 
-    unsigned long now = millis();
-    if (now - lastMqttAttempt < mqttRetryInterval) return; // too soon to retry
-    lastMqttAttempt = now;
-
-    Serial.print("Connecting to MQTT...");
-    if (client.connect("ESP32BrailleClient")) {
-        Serial.println("Connected!");
-        client.subscribe(RESP_TOPIC);
-        // request list (empty payload) - server is expected to respond on RESP_TOPIC
-        client.publish(REQ_TOPIC, "");
-    } 
-    else {
-        Serial.print("Failed, rc=");
-        Serial.print(client.state());
-        delay(2000);
-    }
+  Serial.print("Connecting to MQTT...");
+  if (client.connect("ESP32BrailleClient")) {
+    Serial.println("Connected!");
+    client.subscribe(RESP_TOPIC);
+    client.publish(REQ_TOPIC, "");
+  } else {
+    Serial.print("Failed, rc=");
+    Serial.println(client.state());
+    delay(2000);
+  }
 }
 
 void loopMQTT() {
-  if (!client.connected()) {
-    connectMQTT();
-  }
+  if (!client.connected()) connectMQTT();
   client.loop();
 }
 
-// =================== GET DEVICES ===================
-// Fill newSubMenu[] with devices for a given room index.
-// The mainMenuDynamic entry is expected like "room-dev1;dev2;dev3".
 void getDevices(int idxMain) {
   if (idxMain < 0 || idxMain >= mainMenuCount) {
     subMenuCount = 0;
     return;
   }
-
   String menuName = mainMenuDynamic[idxMain];
   int dashPos = menuName.indexOf('-');
   if (dashPos == -1) {
@@ -411,83 +396,53 @@ void getDevices(int idxMain) {
   int start = 0;
   while (start < devicesStr.length() && subMenuCount < 10) {
     int semi = devicesStr.indexOf(';', start);
-    String dev;
-    if (semi == -1) dev = devicesStr.substring(start);
-    else dev = devicesStr.substring(start, semi);
-
+    String dev = (semi == -1) ? devicesStr.substring(start) : devicesStr.substring(start, semi);
     dev.trim();
-    if (dev.length() > 0) {
-      newSubMenu[subMenuCount++] = dev;
-    }
-
+    if (dev.length() > 0) newSubMenu[subMenuCount++] = dev;
     if (semi == -1) break;
     start = semi + 1;
   }
-
-  for (int i = subMenuCount; i < 10; i++) newSubMenu[i] = "";
-
-  for (int i = 0; i < subMenuCount; i++) {
-    String deviceTopic = mainMenuDynamic[idxMain].substring(0, mainMenuDynamic[idxMain].indexOf('-')) + "/" + newSubMenu[i]; 
-    String statusTopic = deviceTopic + "_status";
-
-    // Subscribe to the status topic
-    client.subscribe(statusTopic.c_str());
-    Serial.println("Subscribed to: " + statusTopic);
-
-    // Ask for the current state
-    client.publish(statusTopic.c_str(), "check");
-    Serial.println("Requested state from: " + deviceTopic);
-
-    // Initialize map with a default OFF until we get a response
-    deviceStates[deviceTopic] = false;
-  }
 }
 
-// =================== UPDATE MENU ===================
 void updateMenu(int idx, String selectedMenu[], int menuCount) {
   if (menuCount <= 0) return;
-
   matrix.clear();
   clearBin();
 
-  // Convert label for braille. If this is a room string like "room-dev1;dev2" we display only the room part for braille.
   String displayText = selectedMenu[idx];
   if (!inSubMenu) {
     int dash = displayText.indexOf('-');
     if (dash != -1) displayText = displayText.substring(0, dash);
   }
-  
+
   convertWord(selectedMenu[idx], binLetter);
 
   lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Selected:");
-  lcd.setCursor(0, 1);
-  lcd.print(displayText);
-}
-
-
-
-void playBuzz(int freq , int duration) {
-  tone(BUZZ_PIN, freq);     // Play tone at 'freq' Hz
-  delay(duration);          // Wait for 'duration' ms
-  noTone(BUZZ_PIN);         // Stop the tone
-}
-
-void clearBin()
-{
-  for (int i = 0; i < 13; i++)
-  { // 13 is too hardcoded
-    binLetter[i] = "000000";
+  if (!inSubMenu) {
+    lcd.setCursor(0, 0);
+    lcd.print("Room:");
+    lcd.setCursor(0, 1);
+    lcd.print(displayText);
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print("Device:");
+    lcd.print(displayText);
+    lcd.setCursor(0, 1);
+    lcd.print("Press ENTER");
   }
 }
 
-void showWelcomeMessage()
-{
-  clearBin();
-  String welcome = "welcome User"; // welcome message (keep it <= 13 chars)
-  convertWord(welcome, binLetter);
+void playBuzz(int freq , int duration) {
+  tone(BUZZ_PIN, freq);
+  delay(duration);
+  noTone(BUZZ_PIN);
+}
 
+
+void showWelcomeMessage() {
+  clearBin();
+  String welcome = "welcome User";
+  convertWord(welcome, binLetter);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Welcome");
@@ -495,31 +450,31 @@ void showWelcomeMessage()
   lcd.print("User");
 }
 
-
-void convertWord(String word, String binLetter[]){//this method converts words into a binary value used to turn certain leds on or off
-
-   // initialize buffer with zeros
+void clearBin() {
   for (int i = 0; i < 13; i++) binLetter[i] = "000000";
+}
 
-  for(int i = 0; i < word.length() && i < 13; i++){
+void showBrailleStatus(bool state, String premsg) {
+  matrix.clear();
+  clearBin();
+  if (state) convertWord(premsg+"ON", binLetter);
+  else convertWord(premsg+"OFF", binLetter);
+}
+
+void convertWord(String word, String binLetter[]) {
+  word.toLowerCase();
+  for (int i = 0; i < 13; i++) binLetter[i] = "000000";
+  
+  for (int i = 0; i < word.length() && i < 13; i++) {
     if (word[i] == '-') break;
     if (word[i] == ' ') continue;
-
     auto it = letters.find(word[i]);
-    if (it != letters.end()) {
-        binLetter[i] = it->second;
-    } else {
-        binLetter[i] = "000000"; // unknown char
-    }
+    binLetter[i] = (it != letters.end()) ? it->second : "000000";
   }
-
   displayBrailleFormat(binLetter, word);
-
 }
 
 void displayBrailleFormat(String cells[], String menuOption) {
-  
-  //CELLS
   int possibleCells = MAX_DEVICES * 2;
   int cellIdx = 0;
   int maxChars = menuOption.length();
@@ -527,16 +482,10 @@ void displayBrailleFormat(String cells[], String menuOption) {
     matrix.setPoint(1, (i*possibleCells/4)-2-(possibleCells-i), cells[cellIdx][0] - '0');
     matrix.setPoint(3, (i*possibleCells/4)-2-(possibleCells-i), cells[cellIdx][1] - '0');
     matrix.setPoint(5, (i*possibleCells/4)-2-(possibleCells-i), cells[cellIdx][2] - '0');
-
     matrix.setPoint(1, (i*possibleCells/4)-4-(possibleCells-i), cells[cellIdx][3] - '0');
     matrix.setPoint(3, (i*possibleCells/4)-4-(possibleCells-i), cells[cellIdx][4] - '0');
     matrix.setPoint(5, (i*possibleCells/4)-4-(possibleCells-i), cells[cellIdx][5] - '0');
-
     cellIdx++;
-
-    if (cellIdx > maxChars) {
-      break;
-    }
+    if (cellIdx > maxChars) break;
   }
-
 }

@@ -11,8 +11,8 @@ Servo m1;
 
 /*=========== MQTT variables ==============
 These variables are responsible for connecting the esp32 to the broker, the topics it subs/pubs to and its name to the rest of the network.*/
-const char* mqtt_server = "5.tcp.ngrok.io";
-const int mqtt_port = 27483;
+const char* mqtt_server = "10.tcp.eu.ngrok.io";
+const int mqtt_port = 25115;
 const char* deviceStatusTopic = "kitchen/doorlock_status";
 const char* deviceTopic = "kitchen/doorlock";
 const char* deviceName = "doorlock";
@@ -26,22 +26,23 @@ PubSubClient client(espClient);
 //============MQTT Messaging=============
 
 void deviceControl(String message){
-  if (message.equalsIgnoreCase("Lock")) {
+  if (message.equalsIgnoreCase("ON")) {
       m1.write(180);
       deviceState = true;
     }
-    else if (message.equalsIgnoreCase("Unlock")) {
+    else if (message.equalsIgnoreCase("OFF")) {
       m1.write(0);
       deviceState = false;
+      statusCheck();
     }
 }
 
 void statusCheck(){
   if(deviceState == true){
-    client.publish(deviceStatusTopic, "Locked");
+    client.publish(deviceStatusTopic, "ON");
   }
   else if(deviceState == false){
-    client.publish(deviceStatusTopic, "Unlocked");
+    client.publish(deviceStatusTopic, "ON");
   }
 }
  
@@ -71,6 +72,7 @@ void reconnect() {
     if(client.connect(deviceName)) {
       client.subscribe(deviceTopic);
       client.subscribe(deviceStatusTopic);
+      statusCheck();
       Serial.println("MQTT Connected");
     }else{
       Serial.print("failed, rc=");

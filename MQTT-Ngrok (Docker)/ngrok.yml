@@ -4,15 +4,15 @@ agent:
 
 endpoints:
   - name: mqtt-tcp
-    url: tcp://5.tcp.ngrok.io:27483 
+    url: tcp://10.tcp.eu.ngrok.io:25115 
     upstream:
-      url: mqtt:1883
+      url: mqtt-broker:1883
       protocol: tcp
 
   - name: mqtt-ws
     url: braillink-broker.ngrok.app   
     upstream:
-      url: mqtt:9001
+      url: mqtt-broker:9001
 
   - name: api
     url: braillink-api.ngrok.app

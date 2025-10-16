@@ -10,11 +10,11 @@ const int LED1 = 26;
 
 /*=========== MQTT variables ==============
 These variables are responsible for connecting the esp32 to the broker, the topics it subs/pubs to and its name to the rest of the network.*/
-const char* mqtt_server = "5.tcp.ngrok.io";
-const int mqtt_port = 27483;
-const char* deviceStatusTopic = "kitchen/Light1_status";
-const char* deviceTopic = "kitchen/Light1";
-const char* deviceName = "kitchen/Light1";
+const char* mqtt_server = "10.tcp.eu.ngrok.io";
+const int mqtt_port = 25115;
+const char* deviceStatusTopic = "kitchen/light1_status";
+const char* deviceTopic = "kitchen/light1";
+const char* deviceName = "kitchen/light1";
 bool deviceState;
 
 //===============WiFi===============
@@ -23,20 +23,6 @@ PubSubClient client(espClient);
 
 
 //============MQTT Messaging=============
-
-void deviceControl(String message){
-  if (message.equalsIgnoreCase("ON")) {
-      digitalWrite(LED1, HIGH);
-      deviceState = true;
-      //Serial.println("Light has been turned on");
-    }
-    else if (message.equalsIgnoreCase("OFF")) {
-      digitalWrite(LED1, LOW);
-      deviceState = false;
-      //Serial.println("Light has been turned off");
-    }
-}
-
 void statusCheck(){
   if(deviceState == true){
     client.publish(deviceStatusTopic, "ON");
@@ -45,6 +31,22 @@ void statusCheck(){
     client.publish(deviceStatusTopic, "OFF");
   }
 }
+void deviceControl(String message){
+  if (message.equalsIgnoreCase("ON")) {
+      digitalWrite(LED1, HIGH);
+      deviceState = true;
+      statusCheck();
+      //Serial.println("Light has been turned on");
+    }
+    else if (message.equalsIgnoreCase("OFF")) {
+      digitalWrite(LED1, LOW);
+      deviceState = false;
+      statusCheck();
+      //Serial.println("Light has been turned off");
+    }
+}
+
+
  
 void callback(char* topic, byte* message, unsigned int length) {
   Serial.print("Message arrived on topic: ");
@@ -72,6 +74,7 @@ void reconnect() {
     if(client.connect(deviceName)) {
       client.subscribe(deviceTopic);
       client.subscribe(deviceStatusTopic);
+      statusCheck();
       Serial.println("MQTT Connected");
     }else{
       Serial.print("failed, rc=");
