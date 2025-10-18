@@ -7,6 +7,8 @@ import BrailleDisplay from "../brailleDisplay/BrailleDisplay";
 import DevicesManagement from "../devices/DevicesManagement";
 import ProfileSettings from "../auth/profile/ProfileSettings";
 import Notifications from "~/routes/notifications";
+import { Routes } from "react-router-dom";
+import RoutesPage from "../routes/RoutesPage";
 
 interface Device {
     id: string;
@@ -88,127 +90,119 @@ const Dashboard: React.FC = () => {
         });
 
         return devices;
-    };  
+    };
 
     // Initialize MQTT connection and subscribe to status topics
-    const initializeMQTT = (devices: Device[]) => {
-        const MQTT_BROKER = 'wss://braillink-broker.ngrok.app/mqtt';
-        const MQTT_CLIENT_ID = 'braillink-' + Math.random().toString(16).substr(2, 8);
+    // Initialize MQTT connection and subscribe to status topics
+const initializeMQTT = (devices: Device[]) => {
+    const MQTT_BROKER = 'wss://braillink-broker.ngrok.app/mqtt';
+    const MQTT_CLIENT_ID = 'braillink-' + Math.random().toString(16).substr(2, 8);
 
-        const connectionOptions: mqtt.IClientOptions = {
-            clientId: MQTT_CLIENT_ID,
-            clean: true,
-            reconnectPeriod: 1000,
-            connectTimeout: 30000,
-            keepalive: 60,
-        };
+    const connectionOptions: mqtt.IClientOptions = {
+        clientId: MQTT_CLIENT_ID,
+        clean: true,
+        reconnectPeriod: 1000,
+        connectTimeout: 30000,
+        keepalive: 60,
+        protocol: 'wss',
+        rejectUnauthorized: false
+    };
 
-        console.log('🔗 Attempting MQTT connection to:', MQTT_BROKER);
-        console.log('📋 Client ID:', MQTT_CLIENT_ID);
+    console.log('🔗 Attempting MQTT connection to:', MQTT_BROKER);
+    const client = mqtt.connect(MQTT_BROKER, connectionOptions);
 
-        const client = mqtt.connect(MQTT_BROKER, connectionOptions);
+    client.on('connect', () => {
+        console.log('✅ MQTT connected successfully');
+        setIsMqttConnected(true);
 
-        client.on('connect', () => {
-            console.log('✅ MQTT connected successfully');
-            setIsMqttConnected(true);
+        setLogs(prev => [
+            { id: Date.now(), message: 'MQTT connected successfully to broker', timestamp: new Date(), type: 'success' },
+            ...prev,
+        ]);
 
-            const successLog: Log = {
-                id: Date.now(),
-                message: "MQTT connected successfully",
-                timestamp: new Date(),
-                type: "success"
-            };
-            setLogs(prevLogs => [successLog, ...prevLogs]);
-
-            // Subscribe to all device status topics
-            devices.forEach(device => {
-                client.subscribe(device.deviceStatusTopic, (err) => {
-                    if (err) {
-                        console.error(`❌ Failed to subscribe to ${device.deviceStatusTopic}:`, err);
-                        const errorLog: Log = {
-                            id: Date.now(),
-                            message: `Failed to subscribe to ${device.deviceStatusTopic}`,
-                            timestamp: new Date(),
-                            type: "error"
-                        };
-                        setLogs(prevLogs => [errorLog, ...prevLogs]);
-                    } else {
-                        console.log(`✅ Subscribed to ${device.deviceStatusTopic}`);
-                        // Request initial status for this device
-                        setTimeout(() => {
-                            client.publish(device.deviceTopic, 'check');
-                            console.log(`📤 Sent check command to ${device.deviceTopic}`);
-                        }, 500);
-                    }
-                });
+        // Subscribe to all "_status" topics
+        devices.forEach(device => {
+            const statusTopic = `${device.deviceTopic}_status`;
+            client.subscribe(statusTopic, err => {
+                if (err) {
+                    console.error(`❌ Failed to subscribe to ${statusTopic}:`, err);
+                    setLogs(prev => [
+                        { id: Date.now(), message: `Failed to subscribe to ${statusTopic}`, timestamp: new Date(), type: 'error' },
+                        ...prev,
+                    ]);
+                } else {
+                    console.log(`✅ Subscribed to ${statusTopic}`);
+                    // Update each device object with its status topic
+                    setDevices(prev =>
+                        prev.map(d =>
+                            d.id === device.id
+                                ? { ...d, deviceStatusTopic: statusTopic }
+                                : d
+                        )
+                    );
+                }
             });
         });
+    });
 
-        client.on('message', (topic, message) => {
-            try {
-                console.log('📨 MQTT message received:', topic, message.toString());
-                const statusResponse: StatusResponse = JSON.parse(message.toString());
-                const isOn = statusResponse.status === 'ON' || statusResponse.status === 'on';
-                const battery = statusResponse.battery;
+    // Handle status updates
+    client.on('message', (topic, message) => {
+        const msg = message.toString().trim().toUpperCase();
+        const isOn = msg === 'ON';
+        const isOff = msg === 'OFF';
 
-                // Update device status and battery
-                setDevices(prevDevices =>
-                    prevDevices.map(device =>
-                        device.deviceStatusTopic === topic
-                            ? {
-                                ...device,
-                                status: isOn,
-                                battery: battery
-                            }
-                            : device
-                    )
+        if (isOn || isOff) {
+            setDevices(prevDevices => {
+                const updated = prevDevices.map(device =>
+                    topic === `${device.deviceTopic}_status`
+                        ? { ...device, status: isOn }
+                        : device
                 );
 
-                // Add to logs
-                const device = devices.find(d => d.deviceStatusTopic === topic);
-                if (device) {
-                    const batteryText = battery !== undefined ? `, Battery: ${battery}%` : '';
+                const updatedDevice = updated.find(d => topic === `${d.deviceTopic}_status`);
+                if (updatedDevice) {
                     const newLog: Log = {
                         id: Date.now(),
-                        message: `${device.name} status: ${isOn ? 'ON' : 'OFF'}${batteryText}`,
+                        message: `${updatedDevice.name} is now ${isOn ? 'ON' : 'OFF'}`,
                         timestamp: new Date(),
-                        type: "info"
+                        type: 'info'
                     };
                     setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 49)]);
                 }
-            } catch (error) {
-                console.error('❌ Failed to parse status message:', error, 'Message:', message.toString());
-            }
-        });
 
-        client.on('error', (error) => {
-            console.error('❌ MQTT error:', error);
-            setIsMqttConnected(false);
-            const errorLog: Log = {
-                id: Date.now(),
-                message: `MQTT error: ${error.message}`,
-                timestamp: new Date(),
-                type: "error"
-            };
-            setLogs(prevLogs => [errorLog, ...prevLogs]);
-        });
+                return updated;
+            });
+        } else {
+            console.log('ℹ️ Unknown MQTT message:', topic, msg);
+        }
+    });
 
-        client.on('close', () => {
-            console.log('🔌 MQTT connection closed');
-            setIsMqttConnected(false);
-        });
+    client.on('error', err => {
+        console.error('❌ MQTT error:', err);
+        setIsMqttConnected(false);
+        setLogs(prev => [
+            { id: Date.now(), message: `MQTT connection error: ${err.message}`, timestamp: new Date(), type: 'error' },
+            ...prev,
+        ]);
+    });
 
-        client.on('offline', () => {
-            console.log('📴 MQTT offline');
-            setIsMqttConnected(false);
-        });
+    client.on('close', () => {
+        console.log('🔌 MQTT connection closed');
+        setIsMqttConnected(false);
+    });
 
-        client.on('reconnect', () => {
-            console.log('🔄 MQTT attempting to reconnect...');
-        });
+    client.on('offline', () => {
+        console.log('📴 MQTT offline');
+        setIsMqttConnected(false);
+    });
 
-        setMqttClient(client);
-    };
+    client.on('reconnect', () => {
+        console.log('🔄 MQTT attempting to reconnect...');
+    });
+
+    setMqttClient(client);
+};
+
 
     // Function to manually check device status
     const checkDeviceStatus = (deviceId: string) => {
@@ -403,6 +397,7 @@ const Dashboard: React.FC = () => {
                 {activeTab === "devices" && <DevicesManagement devices={devices} setDevices={setDevices} />}
                 {activeTab === "braille" && <BrailleDisplay devices={devices} />}
                 {activeTab === "notifications" && <Notifications />}
+                {activeTab === "routes" && <RoutesPage />}
                 {activeTab === "profile" && <ProfileSettings />}
             </main>
         </div>

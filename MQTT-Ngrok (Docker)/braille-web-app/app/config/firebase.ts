@@ -6,19 +6,12 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 // Replace these values with your actual Firebase project configuration
 // Get these values from Firebase Console > Project Settings > Your apps
 const firebaseConfig = {
-  apiKey: "AIzaSyDzQFuSx27OASupNRRl-Ncq7kA7shv52Pk",
-
-  authDomain: "braillink-56926.firebaseapp.com",
-
-  projectId: "braillink-56926",
-
-  storageBucket: "braillink-56926.firebasestorage.app",
-
-  messagingSenderId: "498186932089",
-
-  appId: "1:498186932089:web:ee2efbf0ee9e2462daa9a8",
-
-  measurementId: "G-NQTB10HN1F" 
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCCO-GBVHY8uvXEVbZIZCTzaIj0-1xLzfM",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "braille-display-app.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "braille-display-app",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "braille-display-app.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "680348974640",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:680348974640:web:258ef2e5cda7a2cc98f7f5"
 };
 
 // Initialize Firebase
@@ -31,10 +24,10 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 // Connect to Firebase emulators in development
-//if (import.meta.env.DEV) {
+if (import.meta.env.DEV) {
   // Uncomment these lines if you want to use Firebase emulators for development
   // connectAuthEmulator(auth, "http://localhost:9099");
   // connectFirestoreEmulator(db, 'localhost', 8080);
-//}
+}
 
 export default app;

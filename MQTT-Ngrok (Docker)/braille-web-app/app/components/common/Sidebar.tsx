@@ -1,9 +1,10 @@
 import React from "react";
-import { FaTachometerAlt, FaLightbulb, FaBraille, FaBell, FaUser, FaSignOutAlt } from "react-icons/fa";
+import { FaTachometerAlt, FaLightbulb, FaBraille, FaBell, FaUser, FaRoute, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "~/contexts/AuthContext";
 
-export type TabType = "dashboard" | "devices" | "braille" | "notifications" | "profile";
+
+export type TabType = "dashboard" | "devices" | "braille" | "notifications" | "routine" |"profile";
 
 interface SidebarProps {
     activeTab: TabType;
@@ -38,22 +39,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             <nav className="flex-1">
                 <ul className="space-y-2">
                     {[
-                        { id: "dashboard" as TabType, icon: <FaTachometerAlt />, label: "Dashboard" },
-                        { id: "devices" as TabType, icon: <FaLightbulb />, label: "Devices" },
-                        { id: "braille" as TabType, icon: <FaBraille />, label: "Braille Display" },
-                        {
-                            id: "notifications" as TabType,
-                            icon: (
-                                <div className="relative">
-                                    <FaBell />
-                                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1">
-                                        3
-                                    </span>
-                                </div>
-                            ),
-                            label: "Notifications"
-                        },
-                        { id: "profile" as TabType, icon: <FaUser />, label: "Profile" }
+                        {id: "dashboard" as TabType, icon: <FaTachometerAlt/>, label: "Dashboard"},
+                        {id: "devices" as TabType, icon: <FaLightbulb/>, label: "Devices"},
+                        {id: "braille" as TabType, icon: <FaBraille/>, label: "Braille Display"},
+                        {id: "notifications" as TabType, icon: <FaBell/>, label: "Notifications"},
+                        { id: "routes" as TabType, icon: <FaRoute />, label: "Routines" },
+                        {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"},
                     ].map((item) => (
                         <li key={item.id}>
                             <button
