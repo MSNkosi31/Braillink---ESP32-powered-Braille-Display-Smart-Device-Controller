@@ -1,110 +1,123 @@
-import * as React from "react";
-import { Form, useFetcher } from "@remix-run/react";
-import { StatusChip } from "../ui/StatusChip";
-import type { RouteSummary } from "~/routes/route.server";
+// app/components/routes/RouteRow.tsx
+// One routine card. Shows name, schedule, devices, Active/Paused toggle, Edit and Delete buttons.
 
-// Reusable table row component for a single route.
-// Uses fetcher for Play to avoid a full navigation and supports optimistic "Running..." state.
+import React, { useMemo } from "react";
+import type { Device } from "./RoutesPage";
+import { FaEdit, FaTrash } from "react-icons/fa";
 
-type Props = {
-  route: RouteSummary;
-  onOpenDrawer: (routeId: string) => void;
-};
+export interface Schedule {
+  days: string[];
+  startTime: string;
+  endTime: string;
+}
 
-export function RouteRow({ route, onOpenDrawer }: Props) {
-  const fetcher = useFetcher();
-  const isRunning = fetcher.state !== "idle" && fetcher.formData?.get("_action") === "play" && fetcher.formData?.get("id") === route.id;
+export interface Routine {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  deviceIds: string[];
+  schedule: Schedule | null;
+}
+
+interface Props {
+  routine: Routine;
+  devices: Device[];
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggle: () => void;
+}
+
+const RouteRow: React.FC<Props> = ({ routine, devices, onEdit, onDelete, onToggle }) => {
+  const deviceNames = useMemo(() => {
+    const map = new Map(devices.map((d) => [d.id, d.name]));
+    return routine.deviceIds.map((id) => map.get(id)).filter(Boolean) as string[];
+  }, [devices, routine.deviceIds]);
+
+  const scheduleLabel = useMemo(() => {
+    if (!routine.schedule || routine.schedule.days.length === 0) return "No schedule set";
+    const { days, startTime, endTime } = routine.schedule;
+    if (!startTime || !endTime) return `${days.join(", ")} | --:-- - --:--`;
+    return `${days.join(", ")} | ${startTime} - ${endTime}`;
+    // If you want AM/PM formatting, convert here.
+  }, [routine.schedule]);
 
   return (
-    <tr className="route-row" data-status={route.status}>
-      <td className="cell-name">
-        <button className="link-like" onClick={() => onOpenDrawer(route.id)} aria-label={`Open details for ${route.name}`}>
-          <div className="name">{route.name}</div>
-        </button>
-        {route.tags?.length ? (
-          <div className="tags">
-            {route.tags.map((t: boolean | React.Key | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined) => (
-              <span key={t} className="tag">{t}</span>
-            ))}
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {routine.name}
+            </h4>
+            <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+              {scheduleLabel}
+            </div>
           </div>
-        ) : null}
-        {route.description ? <div className="desc">{route.description}</div> : null}
-      </td>
 
-      <td className="cell-status">
-        <StatusChip status={route.status} />
-      </td>
-
-      <td className="cell-steps">{route.stepsCount}</td>
-
-      <td className="cell-devices">
-        {route.linkedDevices.map((d: { name: any; }) => d.name).join(", ")}
-      </td>
-
-      <td className="cell-last-run">
-        {route.lastRun?.at ? new Date(route.lastRun.at).toLocaleString() : "—"}
-        <div className="subtle">
-          {route.lastRun?.result ?? ""}
-          {route.lastRun?.durationMs ? ` • ${Math.round(route.lastRun.durationMs / 1000)}s` : ""}
-          {route.lastRun?.errorMessage ? ` • ${route.lastRun.errorMessage}` : ""}
         </div>
-      </td>
 
-      <td className="cell-next-run">
-        {route.schedule?.nextRun ? new Date(route.schedule.nextRun).toLocaleString() : "—"}
-      </td>
+        <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          {deviceNames.length > 0 ? (
+            <div>Devices: {deviceNames.join(", ")}</div>
+          ) : (
+            <div>Devices: None selected</div>
+          )}
+        </div>
 
-      <td className="cell-actions">
-        <fetcher.Form method="post" className="inline-form">
-          <input type="hidden" name="id" value={route.id} />
-          <button
-            className="btn btn-primary"
-            type="submit"
-            name="_action"
-            value="play"
-            disabled={isRunning}
-            aria-label={`Run route ${route.name} now`}
-          >
-            {isRunning ? "Running…" : "Play"}
-          </button>
-        </fetcher.Form>
-
-        {route.status === "ACTIVE" ? (
-          <Form method="post" className="inline-form">
-            <input type="hidden" name="id" value={route.id} />
-            <button className="btn" type="submit" name="_action" value="pause" aria-label={`Pause ${route.name}`}>
-              Pause
-            </button>
-          </Form>
-        ) : (
-          <Form method="post" className="inline-form">
-            <input type="hidden" name="id" value={route.id} />
-            <button className="btn" type="submit" name="_action" value="resume" aria-label={`Resume ${route.name}`}>
-              Resume
-            </button>
-          </Form>
+        {routine.description && (
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            {routine.description}
+          </p>
         )}
+      </div>
 
-        <Form method="post" className="inline-form">
-          <input type="hidden" name="id" value={route.id} />
-          <button className="btn" type="submit" name="_action" value="edit" aria-label={`Edit ${route.name}`}>
-            Edit
+      <div className="flex items-center justify-between mt-4">
+        <span
+          className={`text-sm font-medium ${
+            routine.active ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {routine.active ? "ACTIVE" : "PAUSED"}
+        </span>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onEdit}
+            className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-sm flex items-center gap-1"
+          >
+            <FaEdit /> Edit
           </button>
-        </Form>
-
-        <Form method="post" className="inline-form" onSubmit={(e: { preventDefault: () => void; }) => {
-          if (!confirm(`Delete "${route.name}"? This cannot be undone.`)) e.preventDefault();
-        }}>
-          <input type="hidden" name="id" value={route.id} />
-          <button className="btn btn-danger" type="submit" name="_action" value="delete" aria-label={`Delete ${route.name}`}>
-            Delete
+          <button
+            onClick={onDelete}
+            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm flex items-center gap-1"
+          >
+            <FaTrash /> Delete
           </button>
-        </Form>
 
-        <button className="btn link" onClick={() => onOpenDrawer(route.id)} aria-label={`View activity for ${route.name}`}>
-          View Activity
-        </button>
-      </td>
-    </tr>
+          <label className="inline-flex items-center cursor-pointer ml-2">
+            <input
+              type="checkbox"
+              checked={routine.active}
+              onChange={onToggle}
+              className="sr-only"
+            />
+            <div
+              className={`w-10 h-5 rounded-full transition-colors duration-300 ${
+                routine.active ? "bg-blue-600" : "bg-gray-400"
+              }`}
+            >
+              <div
+                className={`w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300 ${
+                  routine.active ? "translate-x-5" : "translate-x-1"
+                }`}
+              />
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default RouteRow;

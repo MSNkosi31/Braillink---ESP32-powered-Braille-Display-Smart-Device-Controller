@@ -1,4 +1,5 @@
 /MQTT-Ngrok (Docker)/mongo-data
+<<<<<<< HEAD
 /PRJ-VIR-GROUP9-main/ArduinoSim/ESP32 Braille Display/.pio
 /PRJ-VIR-GROUP9-main/ArduinoSim/doorlock/.pio
 /PRJ-VIR-GROUP9-main/ArduinoSim/lightbulb/.pio
@@ -6,3 +7,5 @@
 /ESP32_Braille_WebSocket/.pio
 /ESP32_Braille_WebSocket/.pio
 /PRJ-VIR-GROUP9-main/ArduinoSim/ESP32 Braille Display/.pio/libdeps
+=======
+>>>>>>> cdb770e26bb8cb908a8633f3b3995dfc33fc25be
