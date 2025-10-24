@@ -7,7 +7,6 @@ import BrailleDisplay from "../brailleDisplay/BrailleDisplay";
 import DevicesManagement from "../devices/DevicesManagement";
 import ProfileSettings from "../auth/profile/ProfileSettings";
 import Notifications from "~/routes/notifications";
-import { Routes } from "react-router-dom";
 import RoutesPage from "../routes/RoutesPage";
 
 interface Device {
@@ -52,11 +51,34 @@ interface StatusResponse {
     [key: string]: any;
 }
 
+// Routine interfaces based on your API documentation
+interface RoutineAction {
+    deviceId: string;
+    action: string;
+}
+
+interface Routine {
+    id: string;
+    name: string;
+    description: string;
+    active: boolean;
+    deviceIds: string[];
+    deviceActions: Array<{
+        deviceId: string;
+        action: "ON" | "OFF";
+    }>;
+    schedule: {
+        days: string[];
+        time: string;
+    } | null;
+}
+
 const API_BASE = "https://braillink-api.ngrok.app/api";
 
 const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [devices, setDevices] = useState<Device[]>([]);
+    const [routines, setRoutines] = useState<Routine[]>([]);
     const [logs, setLogs] = useState<Log[]>([]);
     const [mqttClient, setMqttClient] = useState<mqtt.MqttClient | null>(null);
     const [isMqttConnected, setIsMqttConnected] = useState(false);
@@ -151,13 +173,26 @@ const Dashboard: React.FC = () => {
         client.on('message', (topic, message) => {
             try {
                 console.log('📨 MQTT message received:', topic, message.toString());
-                const statusResponse: StatusResponse = JSON.parse(message.toString());
-                const isOn = statusResponse.status === 'ON' || statusResponse.status === 'on';
-                const battery = statusResponse.battery;
+                const messageStr = message.toString();
 
-                // Update device status and battery
-                setDevices(prevDevices =>
-                    prevDevices.map(device =>
+                let isOn: boolean;
+                let battery: number | undefined;
+
+                // Try to parse as JSON first
+                try {
+                    const statusResponse: StatusResponse = JSON.parse(messageStr);
+                    isOn = statusResponse.status === 'ON' || statusResponse.status === 'on';
+                    battery = statusResponse.battery;
+                } catch (jsonError) {
+                    // If JSON parsing fails, handle as plain text
+                    console.log('📝 Handling plain text MQTT message');
+                    isOn = messageStr === 'ON' || messageStr === 'on';
+                    battery = undefined;
+                }
+
+                // Update device status and battery using functional update
+                setDevices(prevDevices => {
+                    const updatedDevices = prevDevices.map(device =>
                         device.deviceStatusTopic === topic
                             ? {
                                 ...device,
@@ -165,23 +200,34 @@ const Dashboard: React.FC = () => {
                                 battery: battery
                             }
                             : device
-                    )
-                );
+                    );
 
-                // Add to logs
-                const device = devices.find(d => d.deviceStatusTopic === topic);
-                if (device) {
-                    const batteryText = battery !== undefined ? `, Battery: ${battery}%` : '';
-                    const newLog: Log = {
-                        id: Date.now(),
-                        message: `${device.name} status: ${isOn ? 'ON' : 'OFF'}${batteryText}`,
-                        timestamp: new Date(),
-                        type: "info"
-                    };
-                    setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 49)]);
-                }
+                    // Add to logs - find device from the updated devices array
+                    const device = updatedDevices.find(d => d.deviceStatusTopic === topic);
+                    if (device) {
+                        const batteryText = battery !== undefined ? `, Battery: ${battery}%` : '';
+                        const newLog: Log = {
+                            id: Date.now(),
+                            message: `${device.name} status: ${isOn ? 'ON' : 'OFF'}${batteryText}`,
+                            timestamp: new Date(),
+                            type: "info"
+                        };
+                        setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 49)]);
+                    }
+
+                    return updatedDevices;
+                });
+
             } catch (error) {
-                console.error('❌ Failed to parse status message:', error, 'Message:', message.toString());
+                console.error('❌ Failed to process status message:', error, 'Message:', message.toString());
+
+                const errorLog: Log = {
+                    id: Date.now(),
+                    message: `Failed to process MQTT message: ${message.toString()}`,
+                    timestamp: new Date(),
+                    type: "error"
+                };
+                setLogs(prevLogs => [errorLog, ...prevLogs.slice(0, 49)]);
             }
         });
 
@@ -212,6 +258,113 @@ const Dashboard: React.FC = () => {
         });
 
         setMqttClient(client);
+    };
+
+    // Fetch routines from API
+    const fetchRoutines = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/routines`);
+            if (res.ok) {
+                const apiRoutines: any[] = await res.json();
+
+                // Transform API routines to match your frontend format
+                const transformedRoutines: Routine[] = apiRoutines.map(apiRoutine => {
+                    // Convert actions to frontend format - handle both string deviceId and object
+                    const deviceActions = apiRoutine.actions.map((action: any) => {
+                        // Extract device ID whether it's a string or object
+                        const deviceId = typeof action.deviceId === 'string'
+                            ? action.deviceId
+                            : action.deviceId._id;
+
+                        // Convert "toggle" to "ON" and ensure only ON/OFF
+                        let normalizedAction: "ON" | "OFF" = "ON";
+                        if (action.action === "OFF" || action.action === "off") {
+                            normalizedAction = "OFF";
+                        }
+                        // "toggle" and anything else becomes "ON"
+
+                        return {
+                            deviceId,
+                            action: normalizedAction
+                        };
+                    });
+
+                    // Convert schedule to frontend format
+                    const schedule = apiRoutine.schedule?.time &&
+                        apiRoutine.schedule.daysOfWeek &&
+                        apiRoutine.schedule.daysOfWeek.length > 0
+                        ? {
+                            days: apiRoutine.schedule.daysOfWeek.map((day: number) =>
+                                ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]
+                            ),
+                            time: apiRoutine.schedule.time
+                        }
+                        : null;
+
+                    return {
+                        id: apiRoutine._id || apiRoutine.id,
+                        name: apiRoutine.name,
+                        description: apiRoutine.description || `Routine with ${apiRoutine.actions.length} action(s)`,
+                        active: apiRoutine.schedule?.enabled ?? apiRoutine.enabled ?? true,
+                        deviceIds: deviceActions.map((da: any) => da.deviceId),
+                        deviceActions: deviceActions,
+                        schedule: schedule
+                    };
+                });
+
+                setRoutines(transformedRoutines);
+
+                const successLog: Log = {
+                    id: Date.now(),
+                    message: `Loaded ${transformedRoutines.length} routines from API`,
+                    timestamp: new Date(),
+                    type: "success"
+                };
+                setLogs(prevLogs => [successLog, ...prevLogs]);
+            } else {
+                throw new Error("Failed to fetch routines");
+            }
+        } catch (e) {
+            console.error('Error fetching routines:', e);
+            const errorLog: Log = {
+                id: Date.now(),
+                message: "Failed to fetch routines from API",
+                timestamp: new Date(),
+                type: "error"
+            };
+            setLogs(prevLogs => [errorLog, ...prevLogs]);
+        }
+    };
+
+    // Execute a routine
+    const executeRoutine = async (routineId: string) => {
+        try {
+            const res = await fetch(`${API_BASE}/routines/execute/${routineId}`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                const routine = routines.find(r => r.id === routineId);
+                const successLog: Log = {
+                    id: Date.now(),
+                    message: `Executed routine: ${routine?.name || routineId}`,
+                    timestamp: new Date(),
+                    type: "success"
+                };
+                setLogs(prevLogs => [successLog, ...prevLogs]);
+            } else {
+                throw new Error("Failed to execute routine");
+            }
+        } catch (e) {
+            console.error('Error executing routine:', e);
+            const errorLog: Log = {
+                id: Date.now(),
+                message: `Failed to execute routine: ${routineId}`,
+                timestamp: new Date(),
+                type: "error"
+            };
+            setLogs(prevLogs => [errorLog, ...prevLogs]);
+        }
     };
 
     // Function to manually check device status
@@ -277,6 +430,7 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         fetchDevices();
+        fetchRoutines();
         initLogs();
 
         // Cleanup function
@@ -385,6 +539,24 @@ const Dashboard: React.FC = () => {
                             </button>
                         </div>
 
+                        {/* Quick Routine Actions */}
+                        {routines.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold mb-3">Quick Routine Actions</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {routines.slice(0, 5).map(routine => (
+                                        <button
+                                            key={routine.id}
+                                            onClick={() => executeRoutine(routine.id)}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm transition-colors"
+                                        >
+                                            Run {routine.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                             {devices.map(device => (
                                 <DeviceCard
@@ -407,7 +579,15 @@ const Dashboard: React.FC = () => {
                 {activeTab === "devices" && <DevicesManagement devices={devices} setDevices={setDevices} />}
                 {activeTab === "braille" && <BrailleDisplay devices={devices} />}
                 {activeTab === "notifications" && <Notifications />}
-                {activeTab === "routes" && <RoutesPage />}
+                {activeTab === "routine" && (
+                    <RoutesPage
+                        // Pass routines and devices to RoutesPage if needed
+                        routines={routines}
+                        setRoutines={setRoutines}
+                        devices={devices}
+                        onExecuteRoutine={executeRoutine}
+                    />
+                )}
                 {activeTab === "profile" && <ProfileSettings />}
             </main>
         </div>

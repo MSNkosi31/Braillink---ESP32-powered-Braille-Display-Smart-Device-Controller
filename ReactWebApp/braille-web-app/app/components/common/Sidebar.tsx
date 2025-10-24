@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         {id: "devices" as TabType, icon: <FaLightbulb/>, label: "Devices"},
                         {id: "braille" as TabType, icon: <FaBraille/>, label: "Braille Display"},
                         {id: "notifications" as TabType, icon: <FaBell/>, label: "Notifications"},
-                        { id: "routes" as TabType, icon: <FaRoute />, label: "Routines" },
+                        { id: "routine" as TabType, icon: <FaRoute />, label: "Routines" },
                         {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"},
                     ].map((item) => (
                         <li key={item.id}>
