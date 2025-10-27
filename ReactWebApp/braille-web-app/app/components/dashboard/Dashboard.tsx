@@ -3,7 +3,7 @@ import mqtt from 'mqtt';
 import Sidebar, { type TabType } from "../common/Sidebar";
 import DeviceCard from "../common/DeviceCard";
 import SystemLogs from "../common/SystemLogs";
-import BrailleDisplay from "../brailleDisplay/BrailleDisplay";
+import BrailleDisplay from "../brailleDisplay/BrailleDisplay"; 
 import DevicesManagement from "../devices/DevicesManagement";
 import ProfileSettings from "../auth/profile/ProfileSettings";
 import Notifications from "~/routes/notifications";
@@ -577,7 +577,7 @@ const Dashboard: React.FC = () => {
                 )}
 
                 {activeTab === "devices" && <DevicesManagement devices={devices} setDevices={setDevices} />}
-                {activeTab === "braille" && <BrailleDisplay devices={devices} />}
+                
                 {activeTab === "notifications" && <Notifications />}
                 {activeTab === "routine" && (
                     <RoutesPage

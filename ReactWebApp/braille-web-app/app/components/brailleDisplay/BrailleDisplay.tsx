@@ -68,40 +68,7 @@ const BrailleDisplay: React.FC<BrailleDisplayProps> = ({
         return "No active devices";
     };
 
-    return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="font-medium text-blue-500">
-                    Braille Display
-                </h3>
-                <button
-                    onClick={() => setDots([false, false, false, false, false, false])}
-                    className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                    Reset
-                </button>
-            </div>
 
-            <div className="flex flex-col items-center">
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                    {dots.map((active, index) => (
-                        <button
-                            key={index}
-                            onClick={() => toggleDot(index)}
-                            className={`w-10 h-10 rounded-full transition-all ${active ? "bg-blue-600 shadow-lg shadow-blue-500/50" : "bg-gray-200 dark:bg-gray-600"
-                                }`}
-                            aria-label={`Braille dot ${index + 1}`}
-                        />
-                    ))}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                    {getCurrentStatusText()}
-                    <br />
-                    <span className="text-xs">Displaying first available device status</span>
-                </div>
-            </div>
-        </div>
-    );
 };
 
 export default BrailleDisplay;
