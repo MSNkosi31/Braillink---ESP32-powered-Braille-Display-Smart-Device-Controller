@@ -41,7 +41,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {[
                         {id: "dashboard" as TabType, icon: <FaTachometerAlt/>, label: "Dashboard"},
                         {id: "devices" as TabType, icon: <FaLightbulb/>, label: "Devices"},
-                        {id: "braille" as TabType, icon: <FaBraille/>, label: "Braille Display"},
                         {id: "notifications" as TabType, icon: <FaBell/>, label: "Notifications"},
                         { id: "routes" as TabType, icon: <FaRoute />, label: "Routines" },
                         {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"},

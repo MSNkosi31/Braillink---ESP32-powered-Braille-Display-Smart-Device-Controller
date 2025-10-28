@@ -52,7 +52,7 @@ interface StatusResponse {
     [key: string]: any;
 }
 
-const API_BASE = "https://braillink-api.ngrok.app/api";
+const API_BASE = "https://gleanable-tasha-unforbidding.ngrok-free.dev/api";
 
 const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');

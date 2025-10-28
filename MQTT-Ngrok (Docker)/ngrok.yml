@@ -15,7 +15,7 @@ endpoints:
       url: mqtt-broker:9001
 
   - name: api
-    url: braillink-api.ngrok.app
+    url: gleanable-tasha-unforbidding.ngrok-free.dev
     upstream:
       url: devices-api:5000
 
