@@ -518,7 +518,6 @@ const RoutesPage: React.FC<RoutesPageProps> = ({
       </div>
 
       {/* Top: Devices Grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Devices</h3>
         </div>
@@ -568,7 +567,6 @@ const RoutesPage: React.FC<RoutesPageProps> = ({
             ))}
           </div>
         )}
-      </div>
 
       {/* Filters + Routines List */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">

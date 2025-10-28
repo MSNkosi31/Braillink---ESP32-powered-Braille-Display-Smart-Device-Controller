@@ -163,7 +163,7 @@ app.get('/', (_req, res) => {
 // 🚀 Start unified server
 // ============================================================
 
-server.listen(PORT, () => {
+server.listen(PORT,() => {
   console.log('✅ Server running on port', PORT);
   console.log('🌐 HTTP API: http://localhost:' + PORT);
   console.log('📡 WebSocket URL: ws://localhost:' + PORT + '/mqtt');
