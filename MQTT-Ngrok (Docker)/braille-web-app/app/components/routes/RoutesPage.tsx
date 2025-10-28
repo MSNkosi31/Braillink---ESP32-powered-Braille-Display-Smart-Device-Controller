@@ -1,381 +1,657 @@
-import React, { useState, useEffect } from "react";
-import { FaTrash, FaEdit } from "react-icons/fa";
+// app/components/routes/RoutesPage.tsx
+// Main Routines page: top devices grid + bottom routines list with filters.
 
-interface Schedule {
-  days: string[];
-  startTime: string;
-  endTime: string;
-}
+import React, { useEffect, useMemo, useState } from "react";
+import { FaPlus } from "react-icons/fa";
+import RouteDrawer from "./RouteDrawer";
+import type { RoutineDraft, Schedule, DeviceAction } from "./RouteDrawer";
+import RouteRow, { Routine } from "./RouteRow";
 
-interface Routine{
-  id: number;
+// ----- Device type: match DevicesManagement.tsx -----
+export interface Device {
+  id: string;
   name: string;
-  description: string;
-  isActive: boolean;
-  schedule?: Schedule | null;
+  type: "light" | "temp" | "door" | "voice";
+  status: boolean;
+  location: string;
+  deviceTopic: string;
+  deviceStatusTopic: string;
+  battery?: number;
 }
 
-const RoutinePage: React.FC = () => {
-  const [routes, setRoutes] = useState<Routine[]>(() => {
-    const saved = localStorage.getItem("routes");
-    if (saved) return JSON.parse(saved);
-    return [
-      {
-        id: 1,
-        name: "Morning Routine",
-        description: "Initialize braille display and calibrate pins.",
-        isActive: true,
-        schedule: {
-          days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-          startTime: "05:00",
-          endTime: "08:00",
-        },
-      },
-      {
-        id: 2,
-        name: "Afternoon Routine",
-        description: "Perform mid-day maintenance and diagnostics.",
-        isActive: false,
-        schedule: {
-          days: ["Mon", "Wed", "Fri"],
-          startTime: "13:00",
-          endTime: "15:00",
-        },
-      },
-      {
-        id: 3,
-        name: "Demo Route",
-        description: "Runs demo sequence for visitors.",
-        isActive: false,
-        schedule: {
-          days: ["Sat"],
-          startTime: "10:00",
-          endTime: "11:30",
-        },
-      },
-    ];
-  });
+type StatusFilter = "all" | "active";
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingRoute, setEditingRoute] = useState<Routine | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    isActive: false,
-    days: [] as string[],
-    startTime: "",
-    endTime: "",
-  });
+const API_BASE = "http://gleanable-tasha-unforbidding.ngrok-free.dev/api";
 
-  useEffect(() => {
-    localStorage.setItem("routes", JSON.stringify(routes));
-  }, [routes]);
+// API response shapes used in your DevicesManagement.tsx
+interface ApiDevice {
+  _id: string;
+  deviceName: string;
+  deviceTopic: string;
+  deviceStatusTopic: string;
+}
+interface Room {
+  roomName: string;
+  devices: ApiDevice[];
+}
+interface ApiResponse {
+  rooms: Room[];
+}
 
-  const handleToggle = (id: number) => {
-    setRoutes((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, isActive: !r.isActive } : r))
-    );
+// API Routine interfaces - MATCHING THE ACTUAL API RESPONSE
+interface ApiRoutineAction {
+  deviceId: {
+    _id: string;
+    deviceName: string;
+    deviceTopic: string;
+    deviceStatusTopic: string;
+    roomName: string;
   };
+  action: string; // "ON", "OFF", or "toggle"
+}
 
-  const handleDelete = (id: number) => {
-    setRoutes((prev) => prev.filter((r) => r.id !== id));
+interface ApiRoutine {
+  _id: string;
+  name: string;
+  actions: ApiRoutineAction[];
+  scheduled: boolean;
+  schedule?: {
+    daysOfWeek: number[];
+    enabled: boolean;
+    time?: string;
+    cronExpression?: string;
   };
+  enabled?: boolean;
+  lastExecuted?: string;
+  createdAt: string;
+}
 
-  const handleOpenAddModal = () => {
-    setForm({
-      name: "",
-      description: "",
-      isActive: false,
-      days: [],
-      startTime: "",
-      endTime: "",
+interface CreateRoutineRequest {
+  name: string;
+  actions: Array<{
+    deviceId: string;
+    action: string;
+  }>;
+  scheduled: boolean;
+  time?: string;
+  daysOfWeek?: number[];
+  enabled: boolean;
+}
+
+const transformApiDataToDevices = (apiData: ApiResponse): Device[] => {
+  const acc: Device[] = [];
+  apiData.rooms.forEach((room) => {
+    room.devices.forEach((apiDevice) => {
+      const getDeviceType = (
+        name: string
+      ): "light" | "temp" | "door" | "voice" => {
+        const lower = name.toLowerCase();
+        if (lower.includes("light") || lower.includes("lamp")) return "light";
+        if (lower.includes("temp") || lower.includes("thermo")) return "temp";
+        if (lower.includes("door") || lower.includes("lock")) return "door";
+        if (lower.includes("voice") || lower.includes("speaker")) return "voice";
+        return "light";
+      };
+      acc.push({
+        id: apiDevice._id,
+        name: apiDevice.deviceName,
+        type: getDeviceType(apiDevice.deviceName),
+        status: false,
+        location: room.roomName,
+        deviceTopic: apiDevice.deviceTopic,
+        deviceStatusTopic: apiDevice.deviceStatusTopic,
+      });
     });
-    setIsEditing(false);
-    setIsModalOpen(true);
-  };
+  });
+  return acc;
+};
 
-  const handleOpenEditModal = (route: Routine) => {
-    setEditingRoute(route);
-    setForm({
-      name: route.name,
-      description: route.description,
-      isActive: route.isActive,
-      days: route.schedule?.days || [],
-      startTime: route.schedule?.startTime || "",
-      endTime: route.schedule?.endTime || "",
-    });
-    setIsEditing(true);
-    setIsModalOpen(true);
-  };
+// API functions for routines
+const loadRoutinesFromAPI = async (): Promise<Routine[]> => {
+  try {
+    const res = await fetch(`${API_BASE}/routines`);
+    if (!res.ok) throw new Error("Failed to fetch routines");
+    const apiRoutines: ApiRoutine[] = await res.json();
 
-  const handleToggleDay = (day: string) => {
-    setForm((prev) => {
-      const exists = prev.days.includes(day);
+    return apiRoutines.map(apiRoutine => {
+      // Convert actions to frontend format - handle both string deviceId and object
+      const deviceActions: DeviceAction[] = apiRoutine.actions.map(action => {
+        // Extract device ID whether it's a string or object
+        const deviceId = typeof action.deviceId === 'string'
+          ? action.deviceId
+          : action.deviceId._id;
+
+        // Convert "toggle" to "ON" and ensure only ON/OFF
+        let normalizedAction: "ON" | "OFF" = "ON";
+        if (action.action === "OFF" || action.action === "off") {
+          normalizedAction = "OFF";
+        }
+        // "toggle" and anything else becomes "ON"
+
+        return {
+          deviceId,
+          action: normalizedAction
+        };
+      });
+
+      // Convert schedule to frontend format - FIXED to match actual API structure
+      const schedule: Schedule | null = apiRoutine.schedule?.time &&
+        apiRoutine.schedule.daysOfWeek &&
+        apiRoutine.schedule.daysOfWeek.length > 0
+        ? {
+          days: apiRoutine.schedule.daysOfWeek.map(day =>
+            ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]
+          ),
+          time: apiRoutine.schedule.time
+        }
+        : null;
+
       return {
-        ...prev,
-        days: exists
-          ? prev.days.filter((d) => d !== day)
-          : [...prev.days, day],
+        id: apiRoutine._id,
+        name: apiRoutine.name,
+        description: `Routine with ${apiRoutine.actions.length} action(s)`,
+        active: apiRoutine.schedule?.enabled ?? apiRoutine.enabled ?? true,
+        deviceIds: deviceActions.map(da => da.deviceId),
+        deviceActions: deviceActions,
+        schedule: schedule
       };
     });
-  };
+  } catch (error) {
+    console.error('Error loading routines from API:', error);
+    return [];
+  }
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newRoute: Routine = {
-      id: isEditing && editingRoute ? editingRoute.id : Date.now(),
-      name: form.name.trim(),
-      description: form.description.trim(),
-      isActive: form.isActive,
-      schedule: {
-        days: form.days,
-        startTime: form.startTime,
-        endTime: form.endTime,
-      },
+const saveRoutineToAPI = async (routine: RoutineDraft): Promise<boolean> => {
+  try {
+    // Convert frontend format to API format
+    const hasSchedule = !!(routine.schedule && routine.schedule.days.length > 0 && routine.schedule.time);
+    const daysOfWeek = hasSchedule
+      ? routine.schedule.days.map(day =>
+        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(day)
+      ).filter(day => day !== -1)
+      : [];
+
+    // Use the actual deviceActions - ensure actions are only ON/OFF
+    const actions = routine.deviceActions.map(deviceAction => ({
+      deviceId: deviceAction.deviceId, // Just the device ID string
+      action: deviceAction.action // "ON" or "OFF" only
+    }));
+
+    // Step 1: Create/Update the routine basic info
+    const routineData = {
+      name: routine.name,
+      actions: actions
     };
 
-    setRoutes((prev) => {
-      if (isEditing && editingRoute) {
-        return prev.map((r) => (r.id === editingRoute.id ? newRoute : r));
-      }
-      return [newRoute, ...prev];
+    let routineId = routine.id;
+    let method = 'POST';
+    let url = `${API_BASE}/routines`;
+
+    // If editing existing routine, use PUT
+    if (routineId && !routineId.startsWith('temp-')) {
+      url = `${API_BASE}/routines/${routineId}`;
+      method = 'PUT';
+    }
+
+    console.log('Step 1: Saving routine basic info:', routineData);
+
+    const routineRes = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(routineData)
     });
 
-    setIsModalOpen(false);
-    setEditingRoute(null);
+    if (!routineRes.ok) {
+      const errorText = await routineRes.text();
+      throw new Error(`HTTP ${routineRes.status}: ${errorText}`);
+    }
+
+    // Get the routine ID from response if it was a new routine
+    if (method === 'POST') {
+      const savedRoutine = await routineRes.json();
+      routineId = savedRoutine._id;
+    }
+
+    // Step 2: Update the schedule separately
+    const scheduleData = {
+      scheduled: hasSchedule,
+      time: hasSchedule ? routine.schedule.time : "",
+      daysOfWeek: daysOfWeek,
+      enabled: routine.active
+    };
+
+    console.log('Step 2: Saving schedule data:', scheduleData);
+
+    const scheduleRes = await fetch(`${API_BASE}/routines/${routineId}/schedule`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(scheduleData)
+    });
+
+    if (!scheduleRes.ok) {
+      const errorText = await scheduleRes.text();
+      throw new Error(`HTTP ${scheduleRes.status}: ${errorText}`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error saving routine to API:', error);
+    return false;
+  }
+};
+
+const deleteRoutineFromAPI = async (id: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_BASE}/routines/${id}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('Error deleting routine from API:', error);
+    return false;
+  }
+};
+
+const executeRoutineAPI = async (id: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_BASE}/routines/execute/${id}`, {
+      method: 'POST'
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('Error executing routine:', error);
+    return false;
+  }
+};
+
+const toggleRoutineScheduleAPI = async (id: string, scheduled: boolean, time: string, daysOfWeek: number[], enabled: boolean): Promise<boolean> => {
+  try {
+    // Create update object with schedule fields at root level
+    const updateData: any = {
+      scheduled,
+      enabled
+    };
+
+    // Only add time and daysOfWeek if they have values
+    if (time) {
+      updateData.time = time;
+    }
+    if (daysOfWeek && daysOfWeek.length > 0) {
+      updateData.daysOfWeek = daysOfWeek;
+    }
+
+    const res = await fetch(`${API_BASE}/routines/${id}/schedule`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateData)
+    });
+    return res.ok;
+  } catch (error) {
+    console.error('Error toggling routine schedule:', error);
+    return false;
+  }
+};
+
+const formatScheduleInline = (schedule?: Schedule | null) => {
+  if (!schedule || schedule.days.length === 0 || !schedule.time) {
+    return "No schedule";
+  }
+  return `${schedule.days.join(", ")} | ${schedule.time}`;
+};
+
+interface RoutesPageProps {
+  routines?: Routine[];
+  setRoutines?: (routines: Routine[]) => void;
+  devices?: Device[];
+  onExecuteRoutine?: (routineId: string) => void;
+}
+
+const RoutesPage: React.FC<RoutesPageProps> = ({
+  routines: externalRoutines,
+  setRoutines: externalSetRoutines,
+  devices: externalDevices,
+  onExecuteRoutine
+}) => {
+  // Devices (fetched here so the top section stays in sync with your API)
+  const [devices, setDevices] = useState<Device[]>(externalDevices || []);
+  const [loadingDevices, setLoadingDevices] = useState<boolean>(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+
+  // Routines state (from API)
+  const [internalRoutines, setInternalRoutines] = useState<Routine[]>([]);
+  const [loadingRoutines, setLoadingRoutines] = useState<boolean>(false);
+  const [routineError, setRoutineError] = useState<string | null>(null);
+
+  // Use external routines if provided, otherwise use internal state
+  const routines = externalRoutines || internalRoutines;
+  const setRoutines = externalSetRoutines || setInternalRoutines;
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [deviceFilter, setDeviceFilter] = useState<string>("all");
+  const [query, setQuery] = useState<string>("");
+
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
+  const [prefillDeviceIds, setPrefillDeviceIds] = useState<string[] | null>(null);
+
+  // Fetch devices (same transform as DevicesManagement)
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        setLoadingDevices(true);
+        setDeviceError(null);
+        const res = await fetch(`${API_BASE}/devices`);
+        if (!res.ok) throw new Error("Failed to fetch devices");
+        const api: ApiResponse = await res.json();
+        const transformed = transformApiDataToDevices(api);
+        setDevices(transformed);
+      } catch (e) {
+        setDeviceError("Error fetching devices");
+        // non-fatal for routines UI
+      } finally {
+        setLoadingDevices(false);
+      }
+    };
+
+    if (!externalDevices) {
+      fetchDevices();
+    }
+  }, [externalDevices]);
+
+  // Fetch routines from API
+  useEffect(() => {
+    const fetchRoutines = async () => {
+      try {
+        setLoadingRoutines(true);
+        setRoutineError(null);
+        const routinesData = await loadRoutinesFromAPI();
+        setRoutines(routinesData);
+      } catch (error) {
+        setRoutineError("Error fetching routines");
+        console.error('Error fetching routines:', error);
+      } finally {
+        setLoadingRoutines(false);
+      }
+    };
+
+    if (!externalRoutines) {
+      fetchRoutines();
+    }
+  }, [externalRoutines, setRoutines]);
+
+  // Derived list with filters
+  const filteredRoutines = useMemo(() => {
+    let list = [...routines];
+
+    if (statusFilter === "active") {
+      list = list.filter((r) => r.active);
+    }
+
+    if (deviceFilter !== "all") {
+      list = list.filter((r) => r.deviceIds.includes(deviceFilter));
+    }
+
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.description.toLowerCase().includes(q) ||
+          formatScheduleInline(r.schedule).toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [routines, statusFilter, deviceFilter, query]);
+
+  // Add Routine from top button
+  const openAddRoutine = () => {
+    setEditingRoutine(null);
+    setPrefillDeviceIds(null);
+    setDrawerOpen(true);
   };
 
+  // Add Routine from a specific device card
+  const openAddRoutineForDevice = (deviceId: string) => {
+    setEditingRoutine(null);
+    setPrefillDeviceIds([deviceId]);
+    setDrawerOpen(true);
+  };
+
+  // Edit Routine
+  const openEditRoutine = (routine: Routine) => {
+    setEditingRoutine(routine);
+    setPrefillDeviceIds(null);
+    setDrawerOpen(true);
+  };
+
+  const handleSaveRoutine = async (draft: RoutineDraft) => {
+    const success = await saveRoutineToAPI(draft);
+    if (success) {
+      // Refresh routines from API to get the updated list
+      const updatedRoutines = await loadRoutinesFromAPI();
+      setRoutines(updatedRoutines);
+      setDrawerOpen(false);
+      setEditingRoutine(null);
+    } else {
+      alert("Failed to save routine. Please try again.");
+    }
+  };
+
+  const handleDeleteRoutine = async (id: string) => {
+    if (!confirm("Delete this routine?")) return;
+
+    const success = await deleteRoutineFromAPI(id);
+    if (success) {
+      setRoutines((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      alert("Failed to delete routine. Please try again.");
+    }
+  };
+
+  const handleToggleActive = async (id: string) => {
+    const routine = routines.find(r => r.id === id);
+    if (!routine) return;
+
+    const newActive = !routine.active;
+
+    // Convert schedule to API format
+    const daysOfWeek = routine.schedule?.days.map(day =>
+      ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(day)
+    ).filter(day => day !== -1) || [];
+
+    const success = await toggleRoutineScheduleAPI(
+      id,
+      !!routine.schedule,
+      routine.schedule?.time || "",
+      daysOfWeek,
+      newActive
+    );
+
+    if (success) {
+      setRoutines((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, active: newActive } : r))
+      );
+    } else {
+      alert("Failed to update routine status. Please try again.");
+    }
+  };
+
+  const handleExecuteRoutine = async (id: string) => {
+    if (onExecuteRoutine) {
+      onExecuteRoutine(id);
+    } else {
+      const success = await executeRoutineAPI(id);
+      if (success) {
+        alert("Routine executed successfully!");
+      } else {
+        alert("Failed to execute routine. Please try again.");
+      }
+    }
+  };
+
+  const displayDevices = externalDevices || devices;
+
   return (
-    <div className="p-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-          Routines Management
-        </h1>
-        <button
-          onClick={handleOpenAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium"
-        >
-          + Add Route
-        </button>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Routines Management</h2>
+          <button
+            onClick={openAddRoutine}
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <FaPlus />
+            <span>Add Routine</span>
+          </button>
+        </div>
       </div>
 
-      {/* Routes List */}
-      {routes.length === 0 ? (
-        <p className="text-gray-500">No routes added yet.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {routes.map((route) => (
-            <div
-              key={route.id}
-              className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow hover:shadow-lg transition"
-            >
-              <div className="flex justify-between items-start">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {route.name}
-                </h2>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleOpenEditModal(route)}
-                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm"
-                  >
-                    <FaEdit /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(route.id)}
-                    className="text-red-600 hover:text-red-800 flex items-center gap-1 text-sm"
-                  >
-                    <FaTrash /> Delete
-                  </button>
-                </div>
-              </div>
-
-              {/* Schedule */}
-              {route.schedule && (
-                <div className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                  <p>
-                    <strong>Time:</strong>{" "}
-                    {route.schedule.startTime || "--:--"} -{" "}
-                    {route.schedule.endTime || "--:--"}
-                  </p>
-                  <p>
-                    <strong>Days:</strong>{" "}
-                    {route.schedule.days.length > 0
-                      ? route.schedule.days.join(", ")
-                      : "No days selected"}
-                  </p>
-                </div>
-              )}
-
-              {/* Description */}
-              <p className="text-gray-600 dark:text-gray-400 text-sm mt-3">
-                {route.description}
-              </p>
-
-              {/* Status */}
-              <div className="flex justify-between items-center mt-4">
-                <span
-                  className={`font-medium ${
-                    route.isActive ? "text-green-500" : "text-red-500"
-                  }`}
-                >
-                  {route.isActive ? "ACTIVE" : "PAUSED"}
-                </span>
-                <label className="inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={route.isActive}
-                    onChange={() => handleToggle(route.id)}
-                    className="sr-only"
-                  />
-                  <div
-                    className={`w-10 h-5 rounded-full transition-colors duration-300 ${
-                      route.isActive ? "bg-blue-600" : "bg-gray-400"
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300 ${
-                        route.isActive ? "translate-x-5" : "translate-x-1"
-                      }`}
-                    ></div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          ))}
+      {/* Top: Devices Grid */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold">Devices</h3>
         </div>
-      )}
 
-      {/* Add/Edit Route Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-96">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
-              {isEditing ? "Edit Route" : "Add New Route"}
-            </h2>
+        {deviceError && (
+          <p className="text-red-600 text-sm mb-4">{deviceError}</p>
+        )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Route Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Route Name
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md p-2 mt-1 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Description
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                  rows={2}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md p-2 mt-1 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              {/* Schedule */}
-              <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Days of the week
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
-                    (day) => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => handleToggleDay(day)}
-                        className={`px-2 py-1 rounded-md text-sm ${
-                          form.days.includes(day)
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    )
-                  )}
+        {loadingDevices ? (
+          <p className="text-gray-500">Loading devices…</p>
+        ) : displayDevices.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 dark:text-gray-400">
+              No devices found. Add devices first.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {displayDevices.map((device) => (
+              <div
+                key={device.id}
+                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+                      {device.name}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {device.location || "Unassigned"}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-xs font-medium ${device.status ? "text-green-600" : "text-red-600"
+                      }`}
+                  >
+                    {device.status ? "Online" : "Offline"}
+                  </span>
                 </div>
-              </div>
-
-              {/* Time range */}
-              <div className="flex justify-between space-x-2">
-                <div className="flex flex-col w-1/2">
-                  <label className="text-sm text-gray-700 dark:text-gray-300">
-                    Start Time
-                  </label>
-                  <input
-                    type="time"
-                    value={form.startTime}
-                    onChange={(e) =>
-                      setForm({ ...form, startTime: e.target.value })
-                    }
-                    className="border border-gray-300 dark:border-gray-600 rounded-md p-1"
-                  />
-                </div>
-                <div className="flex flex-col w-1/2">
-                  <label className="text-sm text-gray-700 dark:text-gray-300">
-                    End Time
-                  </label>
-                  <input
-                    type="time"
-                    value={form.endTime}
-                    onChange={(e) =>
-                      setForm({ ...form, endTime: e.target.value })
-                    }
-                    className="border border-gray-300 dark:border-gray-600 rounded-md p-1"
-                  />
-                </div>
-              </div>
-
-              {/* Active toggle */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-700 dark:text-gray-300">
-                  Active by default?
-                </label>
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(e) =>
-                    setForm({ ...form, isActive: e.target.checked })
-                  }
-                />
-              </div>
-
-              {/* Buttons */}
-              <div className="flex justify-end space-x-3 mt-4">
                 <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-md"
+                  onClick={() => openAddRoutineForDevice(device.id)}
+                  className="mt-3 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-                >
-                  {isEditing ? "Save Changes" : "Add Route"}
+                  Add Routine
                 </button>
               </div>
-            </form>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Filters + Routines List */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+          <h3 className="text-lg font-semibold">Routines List</h3>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search routines…"
+              className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-gray-50 dark:bg-gray-700 text-sm"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-gray-50 dark:bg-gray-700 text-sm"
+            >
+              <option value="all">All</option>
+              <option value="active">Active only</option>
+            </select>
+            <select
+              value={deviceFilter}
+              onChange={(e) => setDeviceFilter(e.target.value)}
+              className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-gray-50 dark:bg-gray-700 text-sm"
+            >
+              <option value="all">All devices</option>
+              {displayDevices.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+
+        {loadingRoutines ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 dark:text-gray-400">Loading routines...</p>
+          </div>
+        ) : routineError ? (
+          <div className="text-center py-12">
+            <p className="text-red-600 dark:text-red-400">{routineError}</p>
+          </div>
+        ) : filteredRoutines.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 dark:text-gray-400">
+              No routines yet. Create your first routine.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredRoutines.map((routine) => (
+              <RouteRow
+                key={routine.id}
+                routine={routine}
+                devices={displayDevices}
+                onEdit={() => openEditRoutine(routine)}
+                onDelete={() => handleDeleteRoutine(routine.id)}
+                onToggle={() => handleToggleActive(routine.id)}
+                onExecute={() => handleExecuteRoutine(routine.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Drawer / Modal */}
+      {drawerOpen && (
+        <RouteDrawer
+          isOpen={drawerOpen}
+          onClose={() => {
+            setDrawerOpen(false);
+            setEditingRoutine(null);
+            setPrefillDeviceIds(null);
+          }}
+          onSave={handleSaveRoutine}
+          devices={displayDevices}
+          initialRoutine={editingRoutine || undefined}
+          preselectDeviceIds={prefillDeviceIds || undefined}
+        />
       )}
     </div>
   );
 };
 
-export default RoutinePage;
+export default RoutesPage;

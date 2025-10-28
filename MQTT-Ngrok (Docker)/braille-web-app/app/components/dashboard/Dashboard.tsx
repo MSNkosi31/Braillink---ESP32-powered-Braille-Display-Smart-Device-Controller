@@ -3,11 +3,10 @@ import mqtt from 'mqtt';
 import Sidebar, { type TabType } from "../common/Sidebar";
 import DeviceCard from "../common/DeviceCard";
 import SystemLogs from "../common/SystemLogs";
-import BrailleDisplay from "../brailleDisplay/BrailleDisplay";
+import BrailleDisplay from "../brailleDisplay/BrailleDisplay"; 
 import DevicesManagement from "../devices/DevicesManagement";
 import ProfileSettings from "../auth/profile/ProfileSettings";
 import Notifications from "~/routes/notifications";
-import { Routes } from "react-router-dom";
 import RoutesPage from "../routes/RoutesPage";
 
 interface Device {
@@ -52,11 +51,34 @@ interface StatusResponse {
     [key: string]: any;
 }
 
-const API_BASE = "https://gleanable-tasha-unforbidding.ngrok-free.dev/api";
+// Routine interfaces based on your API documentation
+interface RoutineAction {
+    deviceId: string;
+    action: string;
+}
+
+interface Routine {
+    id: string;
+    name: string;
+    description: string;
+    active: boolean;
+    deviceIds: string[];
+    deviceActions: Array<{
+        deviceId: string;
+        action: "ON" | "OFF";
+    }>;
+    schedule: {
+        days: string[];
+        time: string;
+    } | null;
+}
+
+const API_BASE = "http://gleanable-tasha-unforbidding.ngrok-free.dev/api";
 
 const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [devices, setDevices] = useState<Device[]>([]);
+    const [routines, setRoutines] = useState<Routine[]>([]);
     const [logs, setLogs] = useState<Log[]>([]);
     const [mqttClient, setMqttClient] = useState<mqtt.MqttClient | null>(null);
     const [isMqttConnected, setIsMqttConnected] = useState(false);
@@ -93,116 +115,257 @@ const Dashboard: React.FC = () => {
     };
 
     // Initialize MQTT connection and subscribe to status topics
-    // Initialize MQTT connection and subscribe to status topics
-const initializeMQTT = (devices: Device[]) => {
-    const MQTT_BROKER = 'wss://braillink-broker.ngrok.app/mqtt';
-    const MQTT_CLIENT_ID = 'braillink-' + Math.random().toString(16).substr(2, 8);
+    const initializeMQTT = (devices: Device[]) => {
+        const MQTT_BROKER = 'wss://gleanable-tasha-unforbidding.ngrok-free.dev/mqtt';
+        const MQTT_CLIENT_ID = 'braillink-' + Math.random().toString(16).substr(2, 8);
 
-    const connectionOptions: mqtt.IClientOptions = {
-        clientId: MQTT_CLIENT_ID,
-        clean: true,
-        reconnectPeriod: 1000,
-        connectTimeout: 30000,
-        keepalive: 60,
-        protocol: 'wss',
-        rejectUnauthorized: false
-    };
+        const connectionOptions: mqtt.IClientOptions = {
+            clientId: MQTT_CLIENT_ID,
+            clean: true,
+            reconnectPeriod: 1000,
+            connectTimeout: 30000,
+            keepalive: 60,
+            protocol: 'wss',
+            rejectUnauthorized: false
+        };
 
-    console.log('🔗 Attempting MQTT connection to:', MQTT_BROKER);
-    const client = mqtt.connect(MQTT_BROKER, connectionOptions);
+        console.log('🔗 Attempting MQTT connection to:', MQTT_BROKER);
+        console.log('📋 Client ID:', MQTT_CLIENT_ID);
 
-    client.on('connect', () => {
-        console.log('✅ MQTT connected successfully');
-        setIsMqttConnected(true);
+        const client = mqtt.connect(MQTT_BROKER, connectionOptions);
 
-        setLogs(prev => [
-            { id: Date.now(), message: 'MQTT connected successfully to broker', timestamp: new Date(), type: 'success' },
-            ...prev,
-        ]);
+        client.on('connect', () => {
+            console.log('✅ MQTT connected successfully');
+            setIsMqttConnected(true);
 
-        // Subscribe to all "_status" topics
-        devices.forEach(device => {
-            const statusTopic = `${device.deviceTopic}_status`;
-            client.subscribe(statusTopic, err => {
-                if (err) {
-                    console.error(`❌ Failed to subscribe to ${statusTopic}:`, err);
-                    setLogs(prev => [
-                        { id: Date.now(), message: `Failed to subscribe to ${statusTopic}`, timestamp: new Date(), type: 'error' },
-                        ...prev,
-                    ]);
-                } else {
-                    console.log(`✅ Subscribed to ${statusTopic}`);
-                    // Update each device object with its status topic
-                    setDevices(prev =>
-                        prev.map(d =>
-                            d.id === device.id
-                                ? { ...d, deviceStatusTopic: statusTopic }
-                                : d
-                        )
-                    );
-                }
+            const successLog: Log = {
+                id: Date.now(),
+                message: "MQTT connected successfully to broker",
+                timestamp: new Date(),
+                type: "success"
+            };
+            setLogs(prevLogs => [successLog, ...prevLogs]);
+
+            // Subscribe to all device status topics
+            devices.forEach(device => {
+                client.subscribe(device.deviceStatusTopic, (err) => {
+                    if (err) {
+                        console.error(`❌ Failed to subscribe to ${device.deviceStatusTopic}:`, err);
+                        const errorLog: Log = {
+                            id: Date.now(),
+                            message: `Failed to subscribe to ${device.deviceStatusTopic}`,
+                            timestamp: new Date(),
+                            type: "error"
+                        };
+                        setLogs(prevLogs => [errorLog, ...prevLogs]);
+                    } else {
+                        console.log(`✅ Subscribed to ${device.deviceStatusTopic}`);
+                        // Request initial status for this device
+                        setTimeout(() => {
+                            client.publish(device.deviceTopic, 'check');
+                            console.log(`📤 Sent check command to ${device.deviceTopic}`);
+                        }, 500);
+                    }
+                });
             });
         });
-    });
 
-    // Handle status updates
-    client.on('message', (topic, message) => {
-        const msg = message.toString().trim().toUpperCase();
-        const isOn = msg === 'ON';
-        const isOff = msg === 'OFF';
+        client.on('message', (topic, message) => {
+            try {
+                console.log('📨 MQTT message received:', topic, message.toString());
+                const messageStr = message.toString();
 
-        if (isOn || isOff) {
-            setDevices(prevDevices => {
-                const updated = prevDevices.map(device =>
-                    topic === `${device.deviceTopic}_status`
-                        ? { ...device, status: isOn }
-                        : device
-                );
+                let isOn: boolean;
+                let battery: number | undefined;
 
-                const updatedDevice = updated.find(d => topic === `${d.deviceTopic}_status`);
-                if (updatedDevice) {
-                    const newLog: Log = {
-                        id: Date.now(),
-                        message: `${updatedDevice.name} is now ${isOn ? 'ON' : 'OFF'}`,
-                        timestamp: new Date(),
-                        type: 'info'
-                    };
-                    setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 49)]);
+                // Try to parse as JSON first
+                try {
+                    const statusResponse: StatusResponse = JSON.parse(messageStr);
+                    isOn = statusResponse.status === 'ON' || statusResponse.status === 'on';
+                    battery = statusResponse.battery;
+                } catch (jsonError) {
+                    // If JSON parsing fails, handle as plain text
+                    console.log('📝 Handling plain text MQTT message');
+                    isOn = messageStr === 'ON' || messageStr === 'on';
+                    battery = undefined;
                 }
 
-                return updated;
-            });
-        } else {
-            console.log('ℹ️ Unknown MQTT message:', topic, msg);
+                // Update device status and battery using functional update
+                setDevices(prevDevices => {
+                    const updatedDevices = prevDevices.map(device =>
+                        device.deviceStatusTopic === topic
+                            ? {
+                                ...device,
+                                status: isOn,
+                                battery: battery
+                            }
+                            : device
+                    );
+
+                    // Add to logs - find device from the updated devices array
+                    const device = updatedDevices.find(d => d.deviceStatusTopic === topic);
+                    if (device) {
+                        const batteryText = battery !== undefined ? `, Battery: ${battery}%` : '';
+                        const newLog: Log = {
+                            id: Date.now(),
+                            message: `${device.name} status: ${isOn ? 'ON' : 'OFF'}${batteryText}`,
+                            timestamp: new Date(),
+                            type: "info"
+                        };
+                        setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 49)]);
+                    }
+
+                    return updatedDevices;
+                });
+
+            } catch (error) {
+                console.error('❌ Failed to process status message:', error, 'Message:', message.toString());
+
+                const errorLog: Log = {
+                    id: Date.now(),
+                    message: `Failed to process MQTT message: ${message.toString()}`,
+                    timestamp: new Date(),
+                    type: "error"
+                };
+                setLogs(prevLogs => [errorLog, ...prevLogs.slice(0, 49)]);
+            }
+        });
+
+        client.on('error', (error) => {
+            console.error('❌ MQTT error:', error);
+            setIsMqttConnected(false);
+            const errorLog: Log = {
+                id: Date.now(),
+                message: `MQTT connection error: ${error.message}`,
+                timestamp: new Date(),
+                type: "error"
+            };
+            setLogs(prevLogs => [errorLog, ...prevLogs]);
+        });
+
+        client.on('close', () => {
+            console.log('🔌 MQTT connection closed');
+            setIsMqttConnected(false);
+        });
+
+        client.on('offline', () => {
+            console.log('📴 MQTT offline');
+            setIsMqttConnected(false);
+        });
+
+        client.on('reconnect', () => {
+            console.log('🔄 MQTT attempting to reconnect...');
+        });
+
+        setMqttClient(client);
+    };
+
+    // Fetch routines from API
+    const fetchRoutines = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/routines`);
+            if (res.ok) {
+                const apiRoutines: any[] = await res.json();
+
+                // Transform API routines to match your frontend format
+                const transformedRoutines: Routine[] = apiRoutines.map(apiRoutine => {
+                    // Convert actions to frontend format - handle both string deviceId and object
+                    const deviceActions = apiRoutine.actions.map((action: any) => {
+                        // Extract device ID whether it's a string or object
+                        const deviceId = typeof action.deviceId === 'string'
+                            ? action.deviceId
+                            : action.deviceId._id;
+
+                        // Convert "toggle" to "ON" and ensure only ON/OFF
+                        let normalizedAction: "ON" | "OFF" = "ON";
+                        if (action.action === "OFF" || action.action === "off") {
+                            normalizedAction = "OFF";
+                        }
+                        // "toggle" and anything else becomes "ON"
+
+                        return {
+                            deviceId,
+                            action: normalizedAction
+                        };
+                    });
+
+                    // Convert schedule to frontend format
+                    const schedule = apiRoutine.schedule?.time &&
+                        apiRoutine.schedule.daysOfWeek &&
+                        apiRoutine.schedule.daysOfWeek.length > 0
+                        ? {
+                            days: apiRoutine.schedule.daysOfWeek.map((day: number) =>
+                                ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]
+                            ),
+                            time: apiRoutine.schedule.time
+                        }
+                        : null;
+
+                    return {
+                        id: apiRoutine._id || apiRoutine.id,
+                        name: apiRoutine.name,
+                        description: apiRoutine.description || `Routine with ${apiRoutine.actions.length} action(s)`,
+                        active: apiRoutine.schedule?.enabled ?? apiRoutine.enabled ?? true,
+                        deviceIds: deviceActions.map((da: any) => da.deviceId),
+                        deviceActions: deviceActions,
+                        schedule: schedule
+                    };
+                });
+
+                setRoutines(transformedRoutines);
+
+                const successLog: Log = {
+                    id: Date.now(),
+                    message: `Loaded ${transformedRoutines.length} routines from API`,
+                    timestamp: new Date(),
+                    type: "success"
+                };
+                setLogs(prevLogs => [successLog, ...prevLogs]);
+            } else {
+                throw new Error("Failed to fetch routines");
+            }
+        } catch (e) {
+            console.error('Error fetching routines:', e);
+            const errorLog: Log = {
+                id: Date.now(),
+                message: "Failed to fetch routines from API",
+                timestamp: new Date(),
+                type: "error"
+            };
+            setLogs(prevLogs => [errorLog, ...prevLogs]);
         }
-    });
+    };
 
-    client.on('error', err => {
-        console.error('❌ MQTT error:', err);
-        setIsMqttConnected(false);
-        setLogs(prev => [
-            { id: Date.now(), message: `MQTT connection error: ${err.message}`, timestamp: new Date(), type: 'error' },
-            ...prev,
-        ]);
-    });
+    // Execute a routine
+    const executeRoutine = async (routineId: string) => {
+        try {
+            const res = await fetch(`${API_BASE}/routines/execute/${routineId}`, {
+                method: 'POST'
+            });
 
-    client.on('close', () => {
-        console.log('🔌 MQTT connection closed');
-        setIsMqttConnected(false);
-    });
-
-    client.on('offline', () => {
-        console.log('📴 MQTT offline');
-        setIsMqttConnected(false);
-    });
-
-    client.on('reconnect', () => {
-        console.log('🔄 MQTT attempting to reconnect...');
-    });
-
-    setMqttClient(client);
-};
-
+            if (res.ok) {
+                const routine = routines.find(r => r.id === routineId);
+                const successLog: Log = {
+                    id: Date.now(),
+                    message: `Executed routine: ${routine?.name || routineId}`,
+                    timestamp: new Date(),
+                    type: "success"
+                };
+                setLogs(prevLogs => [successLog, ...prevLogs]);
+            } else {
+                throw new Error("Failed to execute routine");
+            }
+        } catch (e) {
+            console.error('Error executing routine:', e);
+            const errorLog: Log = {
+                id: Date.now(),
+                message: `Failed to execute routine: ${routineId}`,
+                timestamp: new Date(),
+                type: "error"
+            };
+            setLogs(prevLogs => [errorLog, ...prevLogs]);
+        }
+    };
 
     // Function to manually check device status
     const checkDeviceStatus = (deviceId: string) => {
@@ -267,6 +430,7 @@ const initializeMQTT = (devices: Device[]) => {
 
     useEffect(() => {
         fetchDevices();
+        fetchRoutines();
         initLogs();
 
         // Cleanup function
@@ -375,6 +539,24 @@ const initializeMQTT = (devices: Device[]) => {
                             </button>
                         </div>
 
+                        {/* Quick Routine Actions */}
+                        {routines.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold mb-3">Quick Routine Actions</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {routines.slice(0, 5).map(routine => (
+                                        <button
+                                            key={routine.id}
+                                            onClick={() => executeRoutine(routine.id)}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm transition-colors"
+                                        >
+                                            Run {routine.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                             {devices.map(device => (
                                 <DeviceCard
@@ -395,9 +577,17 @@ const initializeMQTT = (devices: Device[]) => {
                 )}
 
                 {activeTab === "devices" && <DevicesManagement devices={devices} setDevices={setDevices} />}
-                {activeTab === "braille" && <BrailleDisplay devices={devices} />}
+                
                 {activeTab === "notifications" && <Notifications />}
-                {activeTab === "routes" && <RoutesPage />}
+                {activeTab === "routine" && (
+                    <RoutesPage
+                        // Pass routines and devices to RoutesPage if needed
+                        routines={routines}
+                        setRoutines={setRoutines}
+                        devices={devices}
+                        onExecuteRoutine={executeRoutine}
+                    />
+                )}
                 {activeTab === "profile" && <ProfileSettings />}
             </main>
         </div>

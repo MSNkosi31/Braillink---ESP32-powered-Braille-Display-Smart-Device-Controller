@@ -9,11 +9,6 @@ endpoints:
       url: mqtt-broker:1883
       protocol: tcp
 
-  - name: mqtt-ws
-    url: braillink-broker.ngrok.app   
-    upstream:
-      url: mqtt-broker:9001
-
   - name: api
     url: gleanable-tasha-unforbidding.ngrok-free.dev
     upstream:

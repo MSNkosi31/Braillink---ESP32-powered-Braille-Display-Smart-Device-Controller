@@ -33,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <aside className="w-64 bg-gray-800 dark:bg-gray-900 text-white p-4 flex flex-col h-screen sticky top-0">
             <div className="mb-8 pb-4 border-b border-gray-700">
                 <h2 className="text-xl font-bold text-blue-400">
-                    Smart Braille
+                    Braillink 
                 </h2>
             </div>
             <nav className="flex-1">
@@ -41,8 +41,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {[
                         {id: "dashboard" as TabType, icon: <FaTachometerAlt/>, label: "Dashboard"},
                         {id: "devices" as TabType, icon: <FaLightbulb/>, label: "Devices"},
+                        
                         {id: "notifications" as TabType, icon: <FaBell/>, label: "Notifications"},
-                        { id: "routes" as TabType, icon: <FaRoute />, label: "Routines" },
+                        { id: "routine" as TabType, icon: <FaRoute />, label: "Routines" },
                         {id: "profile" as TabType, icon: <FaUser/>, label: "Profile"},
                     ].map((item) => (
                         <li key={item.id}>

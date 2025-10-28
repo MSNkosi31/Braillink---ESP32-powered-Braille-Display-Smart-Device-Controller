@@ -68,6 +68,7 @@ const BrailleDisplay: React.FC<BrailleDisplayProps> = ({
         return "No active devices";
     };
 
+
 };
 
 export default BrailleDisplay;
