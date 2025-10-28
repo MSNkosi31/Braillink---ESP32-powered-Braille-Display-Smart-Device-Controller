@@ -73,7 +73,7 @@ interface Routine {
     } | null;
 }
 
-const API_BASE = "https://braillink-api.ngrok.app/api";
+const API_BASE = "https://gleanable-tasha-unforbidding.ngrok-free.dev/api";
 
 const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -116,7 +116,7 @@ const Dashboard: React.FC = () => {
 
     // Initialize MQTT connection and subscribe to status topics
     const initializeMQTT = (devices: Device[]) => {
-        const MQTT_BROKER = 'wss://braillink-broker.ngrok.app/mqtt';
+        const MQTT_BROKER = 'wss://gleanable-tasha-unforbidding.ngrok-free.dev/mqtt';
         const MQTT_CLIENT_ID = 'braillink-' + Math.random().toString(16).substr(2, 8);
 
         const connectionOptions: mqtt.IClientOptions = {

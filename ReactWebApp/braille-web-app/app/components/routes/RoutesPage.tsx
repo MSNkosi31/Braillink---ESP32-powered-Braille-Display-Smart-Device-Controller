@@ -21,7 +21,7 @@ export interface Device {
 
 type StatusFilter = "all" | "active";
 
-const API_BASE = "https://braillink-api.ngrok.app/api";
+const API_BASE = "https://gleanable-tasha-unforbidding.ngrok-free.dev/api";
 
 // API response shapes used in your DevicesManagement.tsx
 interface ApiDevice {

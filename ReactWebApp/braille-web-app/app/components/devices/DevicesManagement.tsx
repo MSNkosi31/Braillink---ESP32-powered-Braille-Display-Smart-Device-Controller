@@ -21,7 +21,7 @@ interface DevicesManagementProps {
   setDevices: (devices: Device[]) => void;
 }
 
-const API_BASE = "https://braillink-api.ngrok.app/api";
+const API_BASE = "https://gleanable-tasha-unforbidding.ngrok-free.dev/api";
 
 interface ApiDevice {
   _id: string;
